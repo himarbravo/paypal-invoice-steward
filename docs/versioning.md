@@ -1,131 +1,131 @@
-# Versiones y releases
+# Versions and releases
 
-## 1. Principio: las versiones viven en Git, no en carpetas
+## 1. Principle: versions live in Git, not in folders
 
-- **Prohibido** crear carpetas o copias como `v1/`, `v2/`, `old/`, `proyecto_final.py`, `backup/`.
-- Una versión es un **tag de Git** sobre un commit de `main`. Para ver cualquier versión antigua:
+- **Forbidden:** creating folders or copies such as `v1/`, `v2/`, `old/`, `final_project.py`, `backup/`.
+- A version is a **Git tag** on a `main` commit. To look at any old version:
   ```bash
-  git checkout v0.3.0       # inspeccionar
-  git switch main           # volver
+  git checkout v0.3.0       # inspect
+  git switch main           # go back
   ```
-- Para recuperar código borrado se usa el historial (`git log -- ruta`, `git show <commit>:ruta`), no copias.
+- Deleted code is recovered from history (`git log -- path`, `git show <commit>:path`), not from copies.
 
 ---
 
-## 2. Esquema: Semantic Versioning (SemVer)
+## 2. Scheme: Semantic Versioning (SemVer)
 
-Formato `MAJOR.MINOR.PATCH`, por ejemplo `1.4.2`.
+Format `MAJOR.MINOR.PATCH`, for example `1.4.2`.
 
-| Sube…   | Cuándo                                                                 | Ejemplo en este proyecto                                  |
-|---------|------------------------------------------------------------------------|-----------------------------------------------------------|
-| `MAJOR` | Cambio **incompatible**: datos guardados o API pública antiguos dejan de funcionar | Cambiar el formato de un archivo de configuración |
-| `MINOR` | Funcionalidad **nueva y compatible**                                    | Añadir un comando nuevo                                   |
-| `PATCH` | **Corrección** de bugs, sin cambiar comportamiento previsto             | Arreglar un cálculo erróneo                               |
+| Bump    | When                                                                    | Example in this project                                   |
+|---------|-------------------------------------------------------------------------|-----------------------------------------------------------|
+| `MAJOR` | **Breaking** change: old saved data or public API stop working          | Changing the format of a configuration file               |
+| `MINOR` | **New, compatible** functionality                                       | Adding a new command                                      |
+| `PATCH` | Bug **fix**, without changing intended behaviour                        | Fixing a wrong calculation                                |
 
-Al subir una cifra, las de la derecha vuelven a 0: `0.4.3` → `0.5.0`.
+When a number goes up, the ones to its right go back to 0: `0.4.3` → `0.5.0`.
 
-### Fase `0.x` (fase actual)
-Mientras `MAJOR` sea `0`, el proyecto está en desarrollo inicial:
-- Lo incompatible sube `MINOR` (`0.4.0` → `0.5.0`).
-- Lo compatible o los fixes suben `PATCH`.
-- La `1.0.0` se publica cuando la API pública y los formatos de datos se consideren estables. Esa decisión se registra con un ADR.
+### `0.x` phase (current phase)
+While `MAJOR` is `0`, the project is in early development:
+- Breaking changes bump `MINOR` (`0.4.0` → `0.5.0`).
+- Compatible changes and fixes bump `PATCH`.
+- `1.0.0` is published when the public API and data formats are considered stable. That decision is recorded with an ADR.
 
-### Pre-releases (opcional)
-Para probar antes de publicar: `0.5.0rc1`, `0.5.0rc2` → `0.5.0` (formato PEP 440, compatible con pip).
-
----
-
-## 3. De commits a versión
-
-El tipo de los Conventional Commits (ver [AGENTS.md](../AGENTS.md)) determina el salto:
-
-| Commits desde la última versión         | Salto (en 1.x+) | Salto (en 0.x) |
-|-----------------------------------------|-----------------|----------------|
-| Alguno con `!` o `BREAKING CHANGE:`     | MAJOR           | MINOR          |
-| Algún `feat:`                           | MINOR           | MINOR o PATCH  |
-| Solo `fix:`, `perf:`                    | PATCH           | PATCH          |
-| Solo `docs:`, `test:`, `chore:`, `ci:`… | no hace falta release | no hace falta release |
+### Pre-releases (optional)
+To test before publishing: `0.5.0rc1`, `0.5.0rc2` → `0.5.0` (PEP 440 format, compatible with pip).
 
 ---
 
-## 4. Dónde está la versión
+## 3. From commits to version
 
-**Única fuente de verdad: `version` en [pyproject.toml](../pyproject.toml).**
+The Conventional Commit types (see [AGENTS.md](../AGENTS.md)) decide the bump:
 
-- `paypal_invoice_steward.__version__` la lee automáticamente del paquete instalado. **Nunca** se escribe la versión a mano en otro sitio.
-- El tag de Git debe coincidir: `version = "0.2.0"` ↔ tag `v0.2.0`.
+| Commits since the last version           | Bump (in 1.x+) | Bump (in 0.x)  |
+|------------------------------------------|----------------|----------------|
+| Any with `!` or `BREAKING CHANGE:`       | MAJOR          | MINOR          |
+| Any `feat:`                              | MINOR          | MINOR or PATCH |
+| Only `fix:`, `perf:`                     | PATCH          | PATCH          |
+| Only `docs:`, `test:`, `chore:`, `ci:`…  | no release needed | no release needed |
+
+---
+
+## 4. Where the version lives
+
+**Single source of truth: `version` in [pyproject.toml](../pyproject.toml).**
+
+- `paypal_invoice_steward.__version__` reads it automatically from the installed package. The version is **never** written by hand anywhere else.
+- The Git tag must match: `version = "0.2.0"` ↔ tag `v0.2.0`.
 
 ---
 
 ## 5. CHANGELOG.md
 
-Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
+Format [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-- Cada PR que cambia comportamiento añade una línea en la sección **`[Unreleased]`**, en la categoría que corresponda:
+- Every PR that changes behaviour adds a line under **`[Unreleased]`**, in the right category:
   `Added` · `Changed` · `Deprecated` · `Removed` · `Fixed` · `Security`
-- Se escribe para usuarios: qué cambia para ellos, no detalles internos.
-- Los PRs de solo `docs`/`test`/`chore`/`ci` no necesitan entrada.
+- It is written for users: what changes for them, not internal details.
+- PRs that are only `docs`/`test`/`chore`/`ci` need no entry.
 
 ---
 
-## 6. Procedimiento de release (paso a paso)
+## 6. Release procedure (step by step)
 
-Se hace en una rama propia y pasa por PR, igual que cualquier otro cambio.
+It is done on its own branch and goes through a PR, like any other change.
 
 ```bash
-# 1. Partir de main actualizado
+# 1. Start from an up-to-date main
 git switch main && git pull --ff-only
 git switch -c chore/release-v0.2.0
 
-# 2. Subir la versión en pyproject.toml
+# 2. Bump the version in pyproject.toml
 #    version = "0.2.0"
 
-# 3. En CHANGELOG.md:
-#    - Renombrar [Unreleased] a [0.2.0] - AAAA-MM-DD
-#    - Crear una sección [Unreleased] vacía encima
-#    - Actualizar los enlaces de comparación del final
+# 3. In CHANGELOG.md:
+#    - Rename [Unreleased] to [0.2.0] - YYYY-MM-DD
+#    - Create an empty [Unreleased] section above it
+#    - Update the comparison links at the end
 
-# 4. Verificar
+# 4. Verify
 ruff check . && ruff format --check . && pytest
 
-# 5. Commit y PR
+# 5. Commit and PR
 git commit -am "chore(release): v0.2.0"
 git push -u origin HEAD
-gh pr create --title "chore(release): v0.2.0" --body "Release v0.2.0. Ver CHANGELOG."
+gh pr create --title "chore(release): v0.2.0" --body "Release v0.2.0. See CHANGELOG."
 
-# 6. Tras el merge (squash), etiquetar el commit resultante en main
+# 6. After the (squash) merge, tag the resulting commit on main
 git switch main && git pull --ff-only
 git tag -a v0.2.0 -m "v0.2.0"
 git push origin v0.2.0
 
-# 7. Publicar la release en GitHub con las notas del CHANGELOG
+# 7. Publish the release on GitHub with the CHANGELOG notes
 gh release create v0.2.0 --title "v0.2.0" --notes-file <(sed -n '/^## \[0.2.0\]/,/^## \[/p' CHANGELOG.md | sed '$d')
 ```
 
-**Los tags no se mueven ni se borran** una vez publicados. Si una release sale mal, se publica una nueva versión PATCH con el arreglo.
+**Tags are never moved or deleted** once published. If a release goes wrong, a new PATCH version with the fix is published.
 
 ---
 
-## 7. Hotfix sobre una versión publicada
+## 7. Hotfix on a published version
 
-Mientras solo se mantenga la última versión (situación actual), un hotfix es un `fix/` normal seguido de una release PATCH.
+While only the latest version is maintained (the current situation), a hotfix is a normal `fix/` followed by a PATCH release.
 
-Si en el futuro hay que mantener una versión antigua (p. ej. `0.4.x` mientras `main` va por `0.6`):
+If an old version ever has to be maintained (e.g. `0.4.x` while `main` is at `0.6`):
 
 ```bash
-git switch -c release/0.4 v0.4.2      # rama de mantenimiento desde el tag
-git switch -c fix/88-crash-guardado
-# ... arreglo + PR contra release/0.4 ...
-# release v0.4.3 desde release/0.4; luego llevar el fix a main con cherry-pick
+git switch -c release/0.4 v0.4.2      # maintenance branch from the tag
+git switch -c fix/88-save-crash
+# ... fix + PR against release/0.4 ...
+# release v0.4.3 from release/0.4; then bring the fix to main with cherry-pick
 ```
 
-Las ramas `release/X.Y` solo se crean cuando hacen falta, y se documenta en un ADR.
+`release/X.Y` branches are only created when needed, and that is recorded in an ADR.
 
 ---
 
-## 8. Compatibilidad de datos
+## 8. Data compatibility
 
-Los archivos que el usuario crea o guarda con el proyecto (configuración, datos exportados, estados guardados) son contratos con el usuario:
-- Incluyen un campo `schema_version`.
-- Cambiar su formato de forma incompatible = salto incompatible (MINOR en `0.x`, MAJOR en `1.x+`).
-- Si es razonable, el proyecto debe migrar automáticamente los formatos antiguos.
+Files the user creates or saves with the project (configuration, exported data, saved state) are contracts with the user:
+- They include a `schema_version` field.
+- Changing their format in a breaking way = breaking bump (MINOR in `0.x`, MAJOR in `1.x+`).
+- If reasonable, the project migrates old formats automatically.

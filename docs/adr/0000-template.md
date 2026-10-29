@@ -1,21 +1,21 @@
-# NNNN. Título de la decisión
+# NNNN. Decision title
 
-- **Estado:** Propuesta | Aceptada | Rechazada | Reemplazada por [NNNN](NNNN-titulo.md)
-- **Fecha:** AAAA-MM-DD
+- **Status:** Proposed | Accepted | Rejected | Superseded by [NNNN](NNNN-title.md)
+- **Date:** YYYY-MM-DD
 
-## Contexto
+## Context
 
-¿Qué problema o necesidad obliga a decidir? ¿Qué restricciones hay?
+What problem or need forces a decision? What constraints are there?
 
-## Decisión
+## Decision
 
-Qué se decide, en una o dos frases claras.
+What is decided, in one or two clear sentences.
 
-## Alternativas consideradas
+## Alternatives considered
 
-- **Opción A:** pros / contras.
-- **Opción B:** pros / contras.
+- **Option A:** pros / cons.
+- **Option B:** pros / cons.
 
-## Consecuencias
+## Consequences
 
-Qué se gana, qué se pierde y qué habrá que hacer a partir de ahora.
+What is gained, what is lost and what has to be done from now on.

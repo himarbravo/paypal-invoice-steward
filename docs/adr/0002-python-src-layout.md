@@ -1,26 +1,28 @@
-# 0002. Python 3.11+ con src layout, pip y pyproject.toml
+# 0002. Python 3.11+ with src layout, pip and pyproject.toml
 
-- **Estado:** Aceptada
-- **Fecha:** 2026-10-02
+- **Status:** Accepted
+- **Date:** 2026-10-02
 
-## Contexto
+> Translated to English on 2026-10-29 without changing its meaning, as allowed by [ADR 0003](0003-english-project-language.md).
 
-Hay que elegir lenguaje y forma de empaquetar el proyecto. Importan la claridad del código, un ecosistema amplio de librerías y la facilidad para testear.
+## Context
 
-## Decisión
+A language and a way to package the project must be chosen. Code clarity, a broad library ecosystem and ease of testing matter.
+
+## Decision
 
 - **Python ≥ 3.11.**
-- **src layout** (`src/paypal_invoice_steward/`) empaquetado con `pyproject.toml` y backend `hatchling`.
-- Entorno con `venv` + `pip install -e ".[dev]"`.
-- **ruff** para lint y formato, y **pytest** para tests.
-- La versión se define solo en `pyproject.toml` (ver [versioning.md](../versioning.md)).
+- **src layout** (`src/paypal_invoice_steward/`) packaged with `pyproject.toml` and the `hatchling` backend.
+- Environment with `venv` + `pip install -e ".[dev]"`.
+- **ruff** for lint and format, and **pytest** for tests.
+- The version is defined only in `pyproject.toml` (see [versioning.md](../versioning.md)).
 
-## Alternativas consideradas
+## Alternatives considered
 
-- **Flat layout** (`paypal_invoice_steward/` en la raíz): más simple, pero permite que los tests pasen importando archivos sin instalar el paquete.
-- **uv / poetry:** más rápidos y con lockfile integrado; se pueden adoptar más adelante con un nuevo ADR sin cambiar la estructura.
+- **Flat layout** (`paypal_invoice_steward/` at the root): simpler, but lets tests pass by importing files without installing the package.
+- **uv / poetry:** faster and with a built-in lockfile; they can be adopted later with a new ADR without changing the structure.
 
-## Consecuencias
+## Consequences
 
-- Hay que instalar el paquete en modo editable para desarrollar.
-- Sin lockfile por ahora: las dependencias se declaran con versión mínima. Revisar al añadir dependencias de ejecución.
+- The package has to be installed in editable mode for development.
+- No lockfile for now: dependencies are declared with a minimum version. Review this when adding runtime dependencies.

@@ -1,4 +1,4 @@
-"""Punto de entrada: `python -m paypal_invoice_steward` o el comando `paypal-invoice-steward`."""
+"""Entry point: `python -m paypal_invoice_steward` or the `paypal-invoice-steward` command."""
 
 from paypal_invoice_steward import __version__
 

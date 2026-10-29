@@ -1,9 +1,9 @@
-"""Núcleo del dominio.
+"""Domain core.
 
-Responsabilidad: los conceptos y reglas propios del proyecto, sin saber de dónde
-vienen los datos ni cómo se muestran. También las interfaces que implementan
-las demás capas.
+Responsibility: the project's own concepts and rules, without knowing where
+the data comes from or how it is shown. Also the interfaces that the other
+layers implement.
 
-Dependencias permitidas: solo la biblioteca estándar y librerías de cálculo.
-`core` no importa ningún otro subpaquete de `paypal_invoice_steward`.
+Allowed dependencies: only the standard library and calculation libraries.
+`core` does not import any other `paypal_invoice_steward` subpackage.
 """

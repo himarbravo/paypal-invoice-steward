@@ -1,14 +1,14 @@
-# Paypal Invoice Steward
+# PayPal Invoice Steward
 
 AI agent that chases late PayPal invoices and forecasts cash flow; it proposes, a human confirms.
 
-> Estado: desarrollo inicial (`0.x`). Ver [CHANGELOG.md](CHANGELOG.md).
+> Status: early development (`0.x`). See [CHANGELOG.md](CHANGELOG.md).
 
-## Requisitos
+## Requirements
 
-- Python 3.11 o superior
+- Python 3.11 or later
 
-## Instalación para desarrollo
+## Development install
 
 ```bash
 git clone https://github.com/himarbravo/paypal-invoice-steward.git
@@ -18,32 +18,32 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-## Uso
+## Usage
 
 ```bash
-paypal-invoice-steward              # o: python -m paypal_invoice_steward
+paypal-invoice-steward              # or: python -m paypal_invoice_steward
 ```
 
-## Desarrollo
+## Development
 
 ```bash
 pytest                  # tests
 ruff check .            # lint
-ruff format .           # formato
-mypy                    # tipos
-./scripts/check.sh      # todo lo anterior, como en la CI
+ruff format .           # format
+mypy                    # types
+./scripts/check.sh      # all of the above, as in CI
 ```
 
-## Documentación
+## Documentation
 
-| Documento | Para qué |
-|-----------|----------|
-| [AGENTS.md](AGENTS.md) | Cómo se trabaja: issues, ramas, commits, PRs |
-| [docs/project-structure.md](docs/project-structure.md) | Dónde está y dónde va cada cosa |
-| [docs/architecture.md](docs/architecture.md) | Cómo funciona por dentro |
-| [docs/versioning.md](docs/versioning.md) | Versiones y releases |
-| [docs/adr/](docs/adr/) | Decisiones de arquitectura |
+| Document | Purpose |
+|----------|---------|
+| [AGENTS.md](AGENTS.md) | How we work: issues, branches, commits, PRs |
+| [docs/project-structure.md](docs/project-structure.md) | Where everything is and where it goes |
+| [docs/architecture.md](docs/architecture.md) | How it works inside |
+| [docs/versioning.md](docs/versioning.md) | Versions and releases |
+| [docs/adr/](docs/adr/) | Architecture decisions |
 
-## Licencia
+## License
 
-[MIT](LICENSE). Si el proyecto necesita otra, cambia `LICENSE` y el campo `license` de `pyproject.toml`.
+[MIT](LICENSE). If the project needs another one, change `LICENSE` and the `license` field in `pyproject.toml`.

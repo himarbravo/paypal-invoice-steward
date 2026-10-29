@@ -5,28 +5,28 @@ __pycache__/
 build/
 dist/
 
-# Entornos
+# Environments
 .venv/
 venv/
 .env
 .env.*
 !.env.example
 
-# Herramientas
+# Tools
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage
 htmlcov/
 
-# Salidas y registros
+# Outputs and logs
 output/
 *.log
 
-# Editores / SO
+# Editors / OS
 .DS_Store
 .idea/
 .vscode/
 
-# Claude Code (config local)
+# Claude Code (local config)
 .claude/settings.local.json

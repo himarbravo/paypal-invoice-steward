@@ -1,8 +1,8 @@
-"""Interfaz con el usuario.
+"""User interface.
 
-Responsabilidad: línea de comandos, visualización y cualquier otra forma de
-interacción. Recoge la petición, llama a `core` y `persistence`, y presenta
-el resultado; no contiene reglas del dominio.
+Responsibility: command line, presentation and any other form of
+interaction. Takes the request, calls `core` and `persistence`, and presents
+the result; it contains no domain rules.
 
-Dependencias permitidas: cualquier subpaquete. Nadie importa `ui`.
+Allowed dependencies: any subpackage. Nobody imports `ui`.
 """
