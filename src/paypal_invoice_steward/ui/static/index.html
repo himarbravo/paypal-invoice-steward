@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice Steward</title>
+<style>
+  :root {
+    --paper: #ECEFF4;
+    --panel: #F6F8FB;
+    --slip: #FFFFFF;
+    --ink: #0E1A33;
+    --ink-2: #4A5672;
+    --line: #CBD2DF;
+    --wash: #DDE3EE;
+    --cobalt: #2A44E8;
+    --cobalt-ink: #1B2FB0;
+    --paid: #17794F;
+    --late: #B33A1F;
+    --amber: #8A5206;
+    --amber-wash: #F6E8CB;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    margin: 0; color: var(--ink); background: var(--paper);
+    font: 15px/1.5 var(--sans); font-variant-numeric: tabular-nums;
+  }
+  h1, h2, h3, p { margin: 0; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .top { padding: 18px clamp(16px, 3vw, 36px) 14px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+  .top h1 { font: 600 22px/1.2 var(--serif); letter-spacing: 0.01em; }
+  .top p { color: var(--ink-2); font-size: 13.5px; }
+
+  .grid { display: grid; grid-template-columns: minmax(340px, 480px) minmax(0, 1fr); min-height: calc(100vh - 62px); }
+  .talk { border-right: 1px solid var(--line); display: flex; flex-direction: column; height: calc(100vh - 62px); position: sticky; top: 0; align-self: start; }
+  .ledger { padding: 26px clamp(16px, 3vw, 40px) 60px; min-width: 0; }
+
+  /* conversation */
+  #log { flex: 1; overflow-y: auto; padding: 20px clamp(14px, 2vw, 24px) 8px; }
+  .msg { margin: 0 0 16px; max-width: 100%; }
+  .msg.me { margin-left: 18%; background: var(--wash); padding: 9px 13px; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.bot { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.err { color: var(--late); }
+  .msg.wait { color: var(--ink-2); }
+  .suggest { padding: 0 clamp(14px, 2vw, 24px) 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .suggest button { background: transparent; border: 1px solid var(--line); padding: 5px 11px; border-radius: 999px; cursor: pointer; font-size: 13.5px; color: var(--ink-2); }
+  .suggest button:hover { border-color: var(--ink-2); color: var(--ink); }
+  #composer { display: flex; gap: 10px; padding: 12px clamp(14px, 2vw, 24px) 18px; border-top: 1px solid var(--line); background: var(--panel); }
+  #composer textarea { flex: 1; resize: none; min-height: 44px; max-height: 140px; padding: 10px 12px; border: 1px solid var(--line); background: #fff; border-radius: 3px; font: inherit; color: var(--ink); }
+  .btn { background: var(--ink); color: #fff; border: 0; padding: 0 18px; min-height: 44px; border-radius: 3px; cursor: pointer; font-weight: 600; }
+  .btn:hover { background: #1c2c52; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn.go { background: var(--cobalt); min-height: 38px; }
+  .btn.go:hover { background: var(--cobalt-ink); }
+  .btn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line); min-height: 38px; font-weight: 500; }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--ink-2); }
+
+  /* the proposal slip: the one object that asks for a decision */
+  .slip { position: relative; background: var(--slip); border: 1px solid var(--line); margin: 10px 0 18px; padding: 14px 16px 14px 34px; box-shadow: 0 1px 0 var(--line); }
+  .slip::before { content: ""; position: absolute; left: 14px; top: 10px; bottom: 10px; border-left: 2px dotted var(--ink-2); opacity: 0.45; }
+  .slip h3 { font: 600 16px/1.35 var(--serif); margin-bottom: 8px; }
+  .slip dl { margin: 0 0 10px; display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; font-size: 14px; }
+  .slip dt { color: var(--ink-2); }
+  .slip dd { margin: 0; overflow-wrap: anywhere; }
+  .slip .note { margin: 0 0 10px; padding: 8px 10px; background: var(--panel); border-left: 3px solid var(--line); font-size: 14px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .slip .fine { font-size: 12.5px; color: var(--ink-2); margin-top: 10px; }
+  .slip .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .slip .problem { margin: 0 0 10px; padding: 8px 10px; font-size: 14px; }
+  .slip.is-unverified .problem { background: var(--amber-wash); color: #5c3600; border-left: 3px solid var(--amber); }
+  .slip.is-failed .problem { color: var(--late); border-left: 3px solid var(--late); background: #F7E2DC; }
+  .slip.is-dismissed { opacity: 0.55; }
+  .slip.is-done h3 { color: var(--ink-2); }
+  .stamp { display: inline-block; margin: 0 0 8px; transform: rotate(-3deg); transform-origin: left center; border: 2px solid var(--paid); color: var(--paid); padding: 1px 10px; font: 700 15px/1.4 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; border-radius: 3px; opacity: 0.9; }
+  .stamp.struck { animation: stamp 260ms cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes stamp { from { transform: rotate(-3deg) scale(1.7); opacity: 0; } to { transform: rotate(-3deg) scale(1); opacity: 0.9; } }
+
+  /* ledger */
+  .owed { font: 400 clamp(20px, 2.2vw, 26px)/1.35 var(--serif); max-width: 48ch; }
+  .owed strong { font-weight: 700; }
+  .owed .risk { color: var(--late); }
+  .chart-wrap { margin: 18px 0 6px; max-width: 760px; }
+  .chart-wrap h2, .invoices h2 { font: 600 17px/1.3 var(--serif); margin-bottom: 2px; }
+  .chart-wrap .sub { color: var(--ink-2); font-size: 14px; margin-bottom: 8px; }
+  svg.chart { width: 100%; height: auto; display: block; }
+  svg.chart .grid-line { stroke: var(--line); stroke-width: 1; }
+  svg.chart .axis-label { fill: var(--ink-2); font: 12px var(--sans); }
+  svg.chart .bar { fill: var(--cobalt); }
+  svg.chart .whisker { stroke: var(--ink); stroke-width: 1.5; }
+  .chart-note { color: var(--ink-2); font-size: 13px; max-width: 60ch; }
+
+  .invoices { margin-top: 34px; max-width: 900px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { text-align: left; font-weight: 500; color: var(--ink-2); font-size: 13px; padding: 6px 0 6px 18px; border-bottom: 1px solid var(--ink-2); }
+  td { padding: 9px 0 9px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th:first-child, td:first-child { padding-left: 0; }
+  th.num, td.num { text-align: right; }
+  td.late { color: var(--late); font-weight: 600; }
+  td.ok { color: var(--paid); }
+  td .chance.high { color: var(--late); font-weight: 600; }
+  td .chance.medium { color: var(--amber); font-weight: 600; }
+  tr.paid td { color: var(--ink-2); }
+  .toggle { margin-top: 10px; background: none; border: 0; color: var(--cobalt-ink); text-decoration: underline; cursor: pointer; padding: 4px 0; }
+  .table-scroll { overflow-x: auto; }
+
+  details.demo { margin-top: 34px; max-width: 520px; border-top: 1px solid var(--line); padding-top: 12px; }
+  details.demo summary { cursor: pointer; color: var(--ink-2); }
+  details.demo p { color: var(--ink-2); font-size: 14px; margin: 8px 0; }
+  details.demo select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); background: #fff; border-radius: 3px; color: var(--ink); max-width: 100%; }
+  .loading { color: var(--ink-2); }
+
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: 1fr; }
+    .talk { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+    #log { max-height: 62vh; min-height: 220px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .stamp.struck { animation: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Invoice Steward</h1>
+  <p id="status-line">Loading</p>
+</header>
+
+<main class="grid">
+  <section class="talk" aria-label="Assistant">
+    <div id="log" role="log" aria-live="polite"></div>
+    <div class="suggest" id="suggest"></div>
+    <form id="composer">
+      <label class="sr-only" for="input">Message to the assistant</label>
+      <textarea id="input" rows="1" maxlength="2000" placeholder="Ask about your invoices"></textarea>
+      <button class="btn" id="send" type="submit">Send</button>
+    </form>
+  </section>
+
+  <section class="ledger" aria-label="Your invoices">
+    <p class="owed" id="owed"><span class="loading">Loading your invoices</span></p>
+    <div class="chart-wrap" id="chart-wrap"></div>
+    <div class="invoices">
+      <h2>Invoices</h2>
+      <div class="table-scroll" id="table"></div>
+      <button class="toggle" id="toggle-paid" type="button" hidden></button>
+    </div>
+    <details class="demo" id="demo" hidden>
+      <summary>Simulate a PayPal problem</summary>
+      <p>Pick a problem, then confirm any proposal to see how the app handles it. It applies to the next PayPal call only.</p>
+      <label class="sr-only" for="fail-mode">Next PayPal call</label>
+      <select id="fail-mode">
+        <option value="">Works normally</option>
+        <option value="timeout_after_send">PayPal sends it, but the answer is lost</option>
+        <option value="reject">PayPal refuses the request</option>
+      </select>
+    </details>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = (sel, root = document) => root.querySelector(sel);
+
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "class") el.className = value;
+    else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
+    else if (value !== false && value != null) el.setAttribute(key, value === true ? "" : value);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+
+const money = (n, cur, digits = 0) =>
+  new Intl.NumberFormat(undefined, { style: "currency", currency: cur, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
+const shortDate = (iso) => new Date(iso + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+const sessionId = (() => {
+  try {
+    let id = localStorage.getItem("steward-session");
+    if (!id) { id = Math.random().toString(36).slice(2, 12); localStorage.setItem("steward-session", id); }
+    return id;
+  } catch { return Math.random().toString(36).slice(2, 12); }
+})();
+
+/* ---------- conversation ---------- */
+const log = $("#log");
+function addMessage(kind, text) {
+  const el = h("div", { class: `msg ${kind}` }, text);
+  log.append(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+
+/* ---------- proposal slips ---------- */
+const slips = new Map();
+
+function slipDetails(p) {
+  const d = p.payload;
+  if (p.kind === "invoice") {
+    const total = d.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+    return [
+      h("dl", {},
+        h("dt", {}, "To"), h("dd", {}, `${d.customer_name} (${d.customer_email})`),
+        h("dt", {}, "Items"), h("dd", {}, d.items.map((i) => h("div", {}, `${i.quantity} × ${i.description} at ${money(i.unit_price, d.currency, 2)}`))),
+        h("dt", {}, "Total"), h("dd", {}, money(total, d.currency, 2)),
+        h("dt", {}, "Due"), h("dd", {}, `${d.due_days} days after it is sent`)),
+      d.note ? h("p", { class: "note" }, d.note) : null,
+    ];
+  }
+  return [
+    h("dl", {}, h("dt", {}, "Invoice"), h("dd", {}, d.invoice_number)),
+    h("p", { class: "note" }, d.note),
+  ];
+}
+
+function slipActions(p, el) {
+  const label = p.kind === "invoice" ? "Send invoice" : "Send reminder";
+  if (p.status === "pending") {
+    return h("div", { class: "actions" },
+      h("button", { class: "btn go", type: "button", onclick: (e) => act(e.currentTarget, el, p, "confirm") }, label),
+      h("button", { class: "btn ghost", type: "button", onclick: (e) => act(e.currentTarget, el, p, "dismiss") }, "Dismiss"));
+  }
+  if (p.status === "unverified") {
+    return h("div", { class: "actions" },
+      p.kind === "invoice"
+        ? [h("button", { class: "btn go", type: "button", onclick: (e) => act(e.currentTarget, el, p, "verify") }, "Check PayPal")]
+        : null);
+  }
+  return null;
+}
+
+function renderSlip(el, p, justChanged = false) {
+  const stampText = p.status === "done" ? (p.kind === "invoice" ? "Invoice sent" : "Reminder sent") : null;
+  el.className = `slip is-${p.status}`;
+  el.dataset.id = p.id;
+  const parts = [
+    stampText ? h("span", { class: `stamp${justChanged ? " struck" : ""}` }, stampText) : null,
+    h("h3", {}, p.summary),
+    p.status === "unverified" ? h("p", { class: "problem" },
+      "We could not confirm whether this went through. ",
+      p.kind === "invoice" ? "Check PayPal before doing anything else; retrying is safe." : "Check PayPal before sending another.") : null,
+    p.status === "failed" ? h("p", { class: "problem" }, `PayPal refused it, so nothing was sent. ${p.error || ""}`) : null,
+    p.status === "dismissed" ? h("p", { class: "fine" }, "Dismissed. Nothing was sent.") : null,
+    p.status === "pending" || p.status === "unverified" ? slipDetails(p) : null,
+    slipActions(p, el),
+    p.status === "pending" ? h("p", { class: "fine" }, `Sending uses exactly what you see here. Reference ${p.reference}.`) : null,
+    p.status === "done" && p.kind === "invoice" && p.result ? h("p", { class: "fine" }, `PayPal invoice ${p.result.invoice.number}, due ${shortDate(p.result.invoice.due)}.`) : null,
+  ];
+  el.replaceChildren(...parts.flat().filter(Boolean));
+}
+
+function addSlip(p) {
+  // The same proposal is never shown twice: bring the existing slip to the bottom.
+  let el = slips.get(p.id);
+  if (!el || !el.isConnected) {
+    el = h("div", { class: "slip" });
+    slips.set(p.id, el);
+  }
+  renderSlip(el, p);
+  log.append(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function act(button, el, p, action) {
+  button.disabled = true;
+  const original = button.textContent;
+  if (action !== "dismiss") button.textContent = action === "verify" ? "Checking" : "Sending";
+  el.setAttribute("aria-busy", "true");
+  try {
+    const body = action === "confirm" ? JSON.stringify({ payload_hash: p.payload_hash }) : "{}";
+    const next = await api(`/api/proposals/${p.id}/${action}`, { method: "POST", body });
+    renderSlip(el, next, next.status === "done" && p.status !== "done");
+    refreshLedger();
+  } catch (err) {
+    button.disabled = false;
+    button.textContent = original;
+    el.querySelector(".actions")?.before(h("p", { class: "problem" }, err.message));
+  } finally {
+    el.removeAttribute("aria-busy");
+  }
+}
+
+/* ---------- sending messages ---------- */
+const input = $("#input");
+const sendBtn = $("#send");
+
+async function send(text) {
+  text = text.trim();
+  if (!text) return;
+  addMessage("me", text);
+  input.value = "";
+  sendBtn.disabled = true;
+  const waiting = addMessage("bot wait", "Working on it");
+  try {
+    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ session_id: sessionId, message: text }) });
+    waiting.className = "msg bot";
+    waiting.textContent = data.reply;
+    data.proposals.forEach(addSlip);
+  } catch (err) {
+    waiting.className = "msg err";
+    waiting.textContent = err.message;
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+$("#composer").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input.value); }
+});
+
+const SUGGESTIONS = [
+  ["What is my cash flow forecast?", "What is my cash flow forecast?"],
+  ["Which invoices are late?", "Which invoices are late?"],
+  ["Remind my late customers", "Remind my late customers"],
+  ["Invoice Alba for a logo refresh", "Invoice Alba Design Studio billing@albadesign.example 450 EUR for a logo refresh"],
+];
+for (const [label, text] of SUGGESTIONS) {
+  $("#suggest").append(h("button", { type: "button", onclick: () => send(text) }, label));
+}
+
+/* ---------- ledger: figures, forecast chart, invoice table ---------- */
+let showPaid = false;
+let lastInvoices = [];
+let lastForecast = null;
+
+function niceMax(value) {
+  const step = Math.pow(10, Math.floor(Math.log10(Math.max(value, 1))));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * step >= value) return m * step;
+  return 10 * step;
+}
+
+function renderChart(f) {
+  const W = 640, H = 230, left = 66, right = 8, top = 12, bottom = 30;
+  const plotW = W - left - right, plotH = H - top - bottom;
+  const max = niceMax(Math.max(...f.weeks.map((w) => Math.max(w.p90, w.expected))) * 1.05);
+  const y = (v) => top + plotH - (v / max) * plotH;
+  const slot = plotW / f.weeks.length, barW = Math.min(44, slot * 0.6);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("class", "chart");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `Expected payments per week for the next ${f.weeks.length} weeks, with the likely range.`);
+  const add = (tag, attrs, text) => {
+    const node = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text != null) node.textContent = text;
+    svg.append(node);
+    return node;
+  };
+  for (let i = 0; i <= 4; i++) {
+    const v = (max / 4) * i;
+    add("line", { class: "grid-line", x1: left, x2: W - right, y1: y(v), y2: y(v) });
+    add("text", { class: "axis-label", x: left - 8, y: y(v) + 4, "text-anchor": "end" }, money(v, f.currency));
+  }
+  f.weeks.forEach((w, i) => {
+    const cx = left + slot * i + slot / 2;
+    const bar = add("rect", { class: "bar", x: cx - barW / 2, y: y(w.expected), width: barW, height: Math.max(plotH - (y(w.expected) - top), 0) });
+    const t = document.createElementNS(ns, "title");
+    t.textContent = `Week of ${shortDate(w.start)}: expect ${money(w.expected, f.currency)}, likely ${money(w.p10, f.currency)} to ${money(w.p90, f.currency)}`;
+    bar.append(t);
+    add("line", { class: "whisker", x1: cx, x2: cx, y1: y(w.p90), y2: y(w.p10) });
+    add("line", { class: "whisker", x1: cx - 6, x2: cx + 6, y1: y(w.p90), y2: y(w.p90) });
+    add("line", { class: "whisker", x1: cx - 6, x2: cx + 6, y1: y(w.p10), y2: y(w.p10) });
+    add("text", { class: "axis-label", x: cx, y: H - 8, "text-anchor": "middle" }, shortDate(w.start));
+  });
+  return svg;
+}
+
+function renderLedger() {
+  const f = lastForecast;
+  const open = lastInvoices.filter((i) => i.status === "open");
+  const owed = $("#owed");
+  if (!open.length) {
+    owed.replaceChildren("Nothing is waiting to be paid. Ask the assistant to prepare an invoice.");
+  } else {
+    const cur = f ? f.currency : open[0].currency;
+    const total = open.reduce((s, i) => s + i.amount, 0);
+    const parts = [
+      h("strong", {}, money(total, cur)), ` is owed across ${open.length} invoice${open.length === 1 ? "" : "s"}.`,
+    ];
+    if (f && f.at_risk_amount > 0) parts.push(" ", h("span", { class: "risk" }, h("strong", {}, money(f.at_risk_amount, cur)), " of it is at risk."));
+    owed.replaceChildren(...parts);
+  }
+
+  const wrap = $("#chart-wrap");
+  if (f) {
+    wrap.replaceChildren(
+      h("h2", {}, `Next ${f.weeks.length} weeks`),
+      h("p", { class: "sub" }, `Expect ${money(f.total.expected, f.currency)} to arrive, most likely between ${money(f.total.p10, f.currency)} and ${money(f.total.p90, f.currency)}.`),
+      renderChart(f),
+      h("p", { class: "chart-note" }, "Bars show the expected payments per week. The line is the range that covers about 8 in 10 outcomes. Late payers pull the range down."),
+    );
+  } else {
+    wrap.replaceChildren();
+  }
+
+  const chance = new Map((f ? f.invoices : []).map((r) => [r.id, r]));
+  const rows = lastInvoices.filter((i) => showPaid || i.status !== "paid");
+  const table = h("table", {},
+    h("caption", { class: "sr-only" }, "Invoices"),
+    h("thead", {}, h("tr", {},
+      h("th", { scope: "col" }, "Invoice"), h("th", { scope: "col" }, "Customer"),
+      h("th", { scope: "col", class: "num" }, "Amount"), h("th", { scope: "col" }, "Status"),
+      h("th", { scope: "col", class: "num" }, "Paid within 30 days"))),
+    h("tbody", {}, rows.map((i) => {
+      const risk = chance.get(i.id);
+      let status = h("td", {}, "Draft");
+      if (i.status === "open") status = i.days_overdue > 0 ? h("td", { class: "late" }, `${i.days_overdue} days late`) : h("td", {}, `Due ${shortDate(i.due)}`);
+      if (i.status === "paid") status = h("td", { class: "ok" }, "Paid");
+      if (i.status === "cancelled") status = h("td", {}, "Cancelled");
+      return h("tr", { class: i.status === "paid" ? "paid" : "" },
+        h("td", {}, i.number), h("td", {}, i.customer_name),
+        h("td", { class: "num" }, money(i.amount, i.currency)), status,
+        h("td", { class: "num" }, risk ? h("span", { class: `chance ${risk.risk}` }, `${Math.round(risk.p_paid_30d * 100)}%`) : ""));
+    })));
+  $("#table").replaceChildren(table);
+  const paidCount = lastInvoices.filter((i) => i.status === "paid").length;
+  const toggle = $("#toggle-paid");
+  toggle.hidden = paidCount === 0;
+  toggle.textContent = showPaid ? "Hide paid invoices" : `Show paid invoices (${paidCount})`;
+}
+
+async function refreshLedger() {
+  try {
+    const [inv, fc] = await Promise.all([api("/api/invoices"), api("/api/forecast")]);
+    lastInvoices = inv.invoices;
+    const currencies = Object.keys(fc.forecasts);
+    lastForecast = currencies.length ? fc.forecasts[currencies[0]] : null;
+    renderLedger();
+  } catch (err) {
+    $("#owed").replaceChildren(h("span", { class: "msg err" }, `Could not load invoices: ${err.message}`));
+  }
+}
+
+$("#toggle-paid").addEventListener("click", () => { showPaid = !showPaid; renderLedger(); });
+
+/* ---------- start ---------- */
+(async function start() {
+  try {
+    const health = await api("/api/health");
+    const data = health.mode === "demo" ? "Demo data" : "PayPal sandbox";
+    const agent = health.agent === "claude" ? "Claude is the assistant" : "offline assistant, add an Anthropic API key to use Claude";
+    $("#status-line").textContent = `${data}, ${agent}.`;
+    if (health.mode === "demo") {
+      $("#demo").hidden = false;
+      $("#fail-mode").addEventListener("change", (e) =>
+        api("/api/demo/fail-next", { method: "POST", body: JSON.stringify({ mode: e.target.value || null }) }).catch(() => {}));
+    }
+  } catch { $("#status-line").textContent = "Could not reach the server."; }
+  addMessage("bot", "I can show what you are owed, forecast when it will arrive, and prepare invoices and reminders for you to approve. Nothing is sent until you confirm it.");
+  refreshLedger();
+})();
+</script>
+</body>
+</html>
