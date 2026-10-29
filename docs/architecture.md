@@ -12,7 +12,7 @@ Pending.
 
 | Module        | Status  | Notes |
 |---------------|---------|-------|
-| `core`        | Pending | |
+| `core`        | In progress | `models`, `ports`, `forecast` ([ADR 0004](adr/0004-invoice-steward-architecture.md)) |
 | `persistence` | Pending | |
 | `ui`          | Pending | |
 
