@@ -271,7 +271,7 @@ class ProposalService:
             message = f"{exc} Outcome unknown; verify before retrying."
             self.store.transition(proposal_id, [EXECUTING], UNVERIFIED, error=message)
             self.store.log(proposal_id, "unverified", str(exc))
-        except Exception as exc:  # noqa: BLE001 - any surprise means "we don't know"
+        except Exception as exc:  # any surprise means "we don't know"
             message = (
                 f"Unexpected error ({type(exc).__name__}). Outcome unknown; verify before retrying."
             )
