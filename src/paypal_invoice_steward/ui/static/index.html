@@ -427,6 +427,7 @@ function renderLedger() {
       if (i.status === "open") status = i.days_overdue > 0 ? h("td", { class: "late" }, `${i.days_overdue} days late`) : h("td", {}, `Due ${shortDate(i.due)}`);
       if (i.status === "paid") status = h("td", { class: "ok" }, "Paid");
       if (i.status === "cancelled") status = h("td", {}, "Cancelled");
+      if (i.status === "unknown") status = h("td", {}, "Unknown status, check PayPal");
       return h("tr", { class: i.status === "paid" ? "paid" : "" },
         h("td", {}, i.number), h("td", {}, i.customer_name),
         h("td", { class: "num" }, money(i.amount, i.currency)), status,

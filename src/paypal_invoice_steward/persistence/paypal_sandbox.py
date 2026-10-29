@@ -6,6 +6,7 @@ misconfiguration can never touch real money.
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
 from datetime import date, timedelta
@@ -18,9 +19,21 @@ from ..core.ports import PayPalError, PayPalUncertain
 
 SANDBOX_URL = "https://api-m.sandbox.paypal.com"
 
-_OPEN = {"SENT", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "SCHEDULED"}
-_PAID = {"PAID", "MARKED_AS_PAID"}
-_CANCELLED = {"CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED", "PARTIALLY_REFUNDED"}
+log = logging.getLogger(__name__)
+
+# Every invoice status in PayPal Invoicing v2, as listed by the official PayPal Agent
+# Toolkit (python/paypal_agent_toolkit/shared/invoices/parameters.py).
+_OPEN = {"SENT", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "SCHEDULED", "SHARED"}
+_PAID = {"PAID", "MARKED_AS_PAID", "PAID_EXTERNAL"}
+_CANCELLED = {
+    "CANCELLED",
+    "AUTO_CANCELLED",
+    "REFUNDED",
+    "PARTIALLY_REFUNDED",
+    "MARKED_AS_REFUNDED",
+    "REFUNDED_EXTERNAL",
+}
+_DRAFT = {"DRAFT"}
 
 
 def _day(value: str | None) -> date | None:
@@ -42,8 +55,13 @@ def normalize_invoice(raw: JSON) -> Invoice:
         status = "open"
     elif raw_status in _CANCELLED:
         status = "cancelled"
-    else:
+    elif raw_status in _DRAFT:
         status = "draft"
+    else:
+        # A status PayPal added after this code was written. Never guess: an
+        # unknown invoice is left out of the forecast and gets no reminders.
+        log.warning("Unknown PayPal invoice status %r on invoice %s", raw_status, raw.get("id"))
+        status = "unknown"
 
     issued = _day(detail.get("invoice_date")) or date.today()
     due = _day((detail.get("payment_term") or {}).get("due_date")) or issued

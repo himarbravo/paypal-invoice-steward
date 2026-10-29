@@ -170,3 +170,25 @@ def test_audit_trail_records_steps(service: ProposalService) -> None:
     service.confirm(p["id"], p["payload_hash"])
     events = [e["event"] for e in service.get(p["id"])["events"]]
     assert events[0] == "proposed" and "confirmed" in events and events[-1] == "done"
+
+
+def test_unknown_status_after_create_is_unverified_not_done(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    p = service.propose_invoice(INVOICE)
+    original = port.create_invoice_draft
+
+    def create_unknown(spec: dict[str, object], reference: str) -> object:
+        invoice = original(spec, reference)
+        invoice.status = "unknown"
+        return invoice
+
+    port.create_invoice_draft = create_unknown
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert port.sent_log == []
+
+
+def test_unknown_invoices_get_no_reminders(service: ProposalService, port: FakePayPal) -> None:
+    port.invoices["INV1"].status = "unknown"
+    with pytest.raises(PolicyError):
+        service.propose_reminder("INV1")

@@ -90,3 +90,10 @@ def test_short_history_is_shrunk_toward_the_average() -> None:
     habits, (g_mean, _) = payment_habits(invoices)
     once_mean = habits["Once"][0]
     assert g_mean < once_mean < 40
+
+
+def test_unknown_invoices_are_left_out() -> None:
+    weird = _open(9, "Fast", 999, 3)
+    weird.status = "unknown"
+    data = forecast([*_book(), weird], TODAY)["EUR"]
+    assert data["open_amount"] == 2500
