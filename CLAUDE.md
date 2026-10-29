@@ -1,5 +1,5 @@
 # CLAUDE.md
 
-El protocolo de trabajo y la estructura del proyecto están en AGENTS.md (compartido con otros agentes). Síguelo siempre.
+The working protocol and the project structure are in AGENTS.md (shared with other agents). Always follow it.
 
 @AGENTS.md

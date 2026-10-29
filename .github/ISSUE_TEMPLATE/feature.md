@@ -1,19 +1,19 @@
 ---
 name: Feature
-about: Nueva funcionalidad o mejora
+about: New functionality or improvement
 title: "feat: "
 labels: type:feature
 ---
 
-## Objetivo
+## Goal
 
-<!-- Qué se quiere conseguir y para qué. -->
+<!-- What should be achieved and why. -->
 
-## Criterios de aceptación
+## Acceptance criteria
 
 - [ ] 
 - [ ] 
 
-## Notas técnicas
+## Technical notes
 
-<!-- Módulos afectados, dependencias, riesgos. -->
+<!-- Affected modules, dependencies, risks. -->

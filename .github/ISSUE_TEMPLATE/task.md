@@ -1,12 +1,12 @@
 ---
-name: Tarea
-about: Refactor, docs, CI u otra tarea técnica
+name: Task
+about: Refactor, docs, CI or another technical task
 title: ""
 labels: ""
 ---
 
-## Qué hay que hacer
+## What needs to be done
 
-## Criterios de aceptación
+## Acceptance criteria
 
 - [ ] 

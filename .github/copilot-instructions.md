@@ -1,3 +1,3 @@
-# Instrucciones para Copilot
+# Instructions for Copilot
 
-El protocolo de trabajo y la estructura del proyecto están en [AGENTS.md](../AGENTS.md), compartido con todos los agentes. Léelo entero antes de cambiar nada y síguelo siempre.
+The working protocol and the project structure are in [AGENTS.md](../AGENTS.md), shared with all agents. Read it in full before changing anything and always follow it.
