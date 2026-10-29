@@ -29,6 +29,7 @@ paypal-invoice-steward/
 │   ├── project-structure.md       # ← this file
 │   ├── architecture.md            # How the system works inside
 │   ├── versioning.md              # How versions and releases are made
+│   ├── demo-script.md             # Script for the hackathon demo video
 │   └── adr/                       # Architecture decision records
 │
 ├── src/paypal_invoice_steward/    # PROJECT CODE (the Python package)
