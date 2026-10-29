@@ -20,7 +20,7 @@ class Invoice:
     customer_email: str
     amount: float
     currency: str
-    status: str  # draft | open | paid | cancelled
+    status: str  # draft | open | paid | cancelled | unknown
     issued: date
     due: date
     paid: date | None = None

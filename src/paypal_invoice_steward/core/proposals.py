@@ -291,6 +291,8 @@ class ProposalService:
                 invoice = self.port.create_invoice_draft(proposal["payload"], proposal["reference"])
             if invoice.status == "cancelled":
                 raise PayPalError("This invoice already exists in PayPal but was cancelled.")
+            if invoice.status == "unknown":
+                raise PayPalUncertain("PayPal reports a status this app does not know.")
             if invoice.status == "draft":
                 invoice = self.port.send_invoice(invoice.id)
             return {"invoice": invoice.to_dict(today)}

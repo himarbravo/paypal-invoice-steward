@@ -129,3 +129,30 @@ def test_expired_token_is_refreshed_once() -> None:
 def test_satisfies_the_port() -> None:
     port: PayPalPort = make(lambda r: httpx.Response(200, json={}))
     assert port.mode == "sandbox"
+
+
+@pytest.mark.parametrize(
+    ("paypal_status", "expected"),
+    [
+        ("DRAFT", "draft"),
+        ("SENT", "open"),
+        ("SCHEDULED", "open"),
+        ("UNPAID", "open"),
+        ("PARTIALLY_PAID", "open"),
+        ("PAYMENT_PENDING", "open"),
+        ("SHARED", "open"),
+        ("PAID", "paid"),
+        ("MARKED_AS_PAID", "paid"),
+        ("PAID_EXTERNAL", "paid"),
+        ("CANCELLED", "cancelled"),
+        ("AUTO_CANCELLED", "cancelled"),
+        ("REFUNDED", "cancelled"),
+        ("PARTIALLY_REFUNDED", "cancelled"),
+        ("MARKED_AS_REFUNDED", "cancelled"),
+        ("REFUNDED_EXTERNAL", "cancelled"),
+        ("SOMETHING_NEW", "unknown"),
+        ("", "unknown"),
+    ],
+)
+def test_every_paypal_status_is_mapped(paypal_status: str, expected: str) -> None:
+    assert normalize_invoice({**RAW, "status": paypal_status}).status == expected
