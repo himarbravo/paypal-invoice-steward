@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Entornos
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Herramientas
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Salidas y registros
+output/
+*.log
+
+# Editores / SO
+.DS_Store
+.idea/
+.vscode/
+
+# Claude Code (config local)
+.claude/settings.local.json
