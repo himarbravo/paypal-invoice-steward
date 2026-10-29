@@ -1,17 +1,19 @@
-# 0001. Registrar las decisiones de arquitectura con ADRs
+# 0001. Record architecture decisions with ADRs
 
-- **Estado:** Aceptada
-- **Fecha:** 2026-10-02
+- **Status:** Accepted
+- **Date:** 2026-10-02
 
-## Contexto
+> Translated to English on 2026-10-29 without changing its meaning, as allowed by [ADR 0003](0003-english-project-language.md).
 
-El proyecto irá acumulando código y lo trabajarán varias personas y agentes. Sin registro, el motivo de cada decisión se pierde y se vuelven a discutir cuestiones ya resueltas.
+## Context
 
-## Decisión
+The project will accumulate code and several people and agents will work on it. Without a record, the reason for each decision is lost and settled questions get discussed again.
 
-Cada decisión de diseño no trivial se documenta en `docs/adr/NNNN-titulo.md` a partir de [0000-template.md](0000-template.md). Los ADR son inmutables: si una decisión cambia, se crea uno nuevo y el antiguo pasa a "Reemplazada por".
+## Decision
 
-## Consecuencias
+Every non-trivial design decision is documented in `docs/adr/NNNN-title.md`, starting from [0000-template.md](0000-template.md). ADRs are immutable: if a decision changes, a new one is created and the old one becomes "Superseded by".
 
-- Hay que escribir un ADR antes de crear un módulo de primer nivel, añadir una dependencia importante o cambiar un formato de datos.
-- El historial de razonamiento queda en el repositorio, junto al código.
+## Consequences
+
+- An ADR must be written before creating a top-level module, adding an important dependency or changing a data format.
+- The history of reasoning stays in the repository, next to the code.

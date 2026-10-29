@@ -1,21 +1,21 @@
-# Arquitectura
+# Architecture
 
-> Documento vivo. Actualízalo en el mismo PR que cambie un módulo o la relación entre módulos. Para la ubicación de archivos, ver [project-structure.md](project-structure.md).
+> Living document. Update it in the same PR that changes a module or the relationship between modules. For where files live, see [project-structure.md](project-structure.md).
 
-## Visión general
+## Overview
 
-<!-- Qué hace el sistema y cómo fluyen los datos de la entrada a la salida. Un diagrama corto ayuda. -->
+<!-- What the system does and how data flows from input to output. A short diagram helps. -->
 
-Pendiente.
+Pending.
 
-## Módulos
+## Modules
 
-| Módulo        | Estado    | Notas |
-|---------------|-----------|-------|
-| `core`        | Pendiente | |
-| `persistence` | Pendiente | |
-| `ui`          | Pendiente | |
+| Module        | Status  | Notes |
+|---------------|---------|-------|
+| `core`        | Pending | |
+| `persistence` | Pending | |
+| `ui`          | Pending | |
 
-## Decisiones relevantes
+## Relevant decisions
 
-Ver [adr/](adr/).
+See [adr/](adr/).

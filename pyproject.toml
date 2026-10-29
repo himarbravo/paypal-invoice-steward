@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "paypal-invoice-steward"
-version = "0.1.0"  # Única fuente de verdad de la versión. Ver docs/versioning.md
+version = "0.1.0"  # Single source of truth for the version. See docs/versioning.md
 description = "AI agent that chases late PayPal invoices and forecasts cash flow; it proposes, a human confirms."
 readme = "README.md"
 license = "MIT"

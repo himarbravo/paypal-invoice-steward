@@ -1,9 +1,9 @@
-"""Entrada/salida de datos.
+"""Data input/output.
 
-Responsabilidad: todo lo que cruza la frontera del programa: archivos, red,
-bases de datos y APIs externas. Convierte entre formatos externos y los
-objetos de `core`.
+Responsibility: everything that crosses the program's boundary: files,
+network, databases and external APIs. Converts between external formats and
+`core` objects.
 
-Dependencias permitidas: `core`. Ni `core` ni ningún otro módulo del dominio
-importa `persistence`.
+Allowed dependencies: `core`. Neither `core` nor any other domain module
+imports `persistence`.
 """

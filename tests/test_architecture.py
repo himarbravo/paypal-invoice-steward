@@ -1,6 +1,6 @@
-"""Hace cumplir las reglas de dependencia entre subpaquetes.
+"""Enforces the dependency rules between subpackages.
 
-Las reglas están descritas en docs/project-structure.md, sección 3.
+The rules are described in docs/project-structure.md, section 3.
 """
 
 import ast
@@ -12,8 +12,8 @@ import paypal_invoice_steward
 PACKAGE = paypal_invoice_steward.__name__
 ROOT = Path(paypal_invoice_steward.__file__).parent
 
-# Subpaquete -> subpaquetes que puede importar.
-# Añadir un subpaquete de primer nivel requiere un ADR y una línea aquí.
+# Subpackage -> subpackages it may import.
+# Adding a top-level subpackage requires an ADR and a line here.
 ALLOWED: dict[str, set[str]] = {
     "core": set(),
     "persistence": {"core"},
@@ -22,7 +22,7 @@ ALLOWED: dict[str, set[str]] = {
 
 
 def imported_modules(path: Path) -> Iterator[str]:
-    """Nombres absolutos de todo lo que importa un archivo."""
+    """Absolute names of everything a file imports."""
     package = (PACKAGE, *path.relative_to(ROOT).parts[:-1])
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):
@@ -48,5 +48,5 @@ def test_subpackages_only_import_what_they_are_allowed():
                 if parts[0] != PACKAGE or len(parts) < 2 or parts[1] not in ALLOWED:
                     continue
                 if parts[1] != subpackage and parts[1] not in allowed:
-                    violations.append(f"{path.relative_to(ROOT)} importa {parts[1]}")
-    assert not violations, "Dependencias no permitidas: " + "; ".join(sorted(set(violations)))
+                    violations.append(f"{path.relative_to(ROOT)} imports {parts[1]}")
+    assert not violations, "Dependencies not allowed: " + "; ".join(sorted(set(violations)))
