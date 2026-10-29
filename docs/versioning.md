@@ -52,7 +52,7 @@ El tipo de los Conventional Commits (ver [AGENTS.md](../AGENTS.md)) determina el
 
 **Única fuente de verdad: `version` en [pyproject.toml](../pyproject.toml).**
 
-- `my_project.__version__` la lee automáticamente del paquete instalado. **Nunca** se escribe la versión a mano en otro sitio.
+- `paypal_invoice_steward.__version__` la lee automáticamente del paquete instalado. **Nunca** se escribe la versión a mano en otro sitio.
 - El tag de Git debe coincidir: `version = "0.2.0"` ↔ tag `v0.2.0`.
 
 ---

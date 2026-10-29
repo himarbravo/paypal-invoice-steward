@@ -10,14 +10,14 @@ Hay que elegir lenguaje y forma de empaquetar el proyecto. Importan la claridad 
 ## Decisión
 
 - **Python ≥ 3.11.**
-- **src layout** (`src/my_project/`) empaquetado con `pyproject.toml` y backend `hatchling`.
+- **src layout** (`src/paypal_invoice_steward/`) empaquetado con `pyproject.toml` y backend `hatchling`.
 - Entorno con `venv` + `pip install -e ".[dev]"`.
 - **ruff** para lint y formato, y **pytest** para tests.
 - La versión se define solo en `pyproject.toml` (ver [versioning.md](../versioning.md)).
 
 ## Alternativas consideradas
 
-- **Flat layout** (`my_project/` en la raíz): más simple, pero permite que los tests pasen importando archivos sin instalar el paquete.
+- **Flat layout** (`paypal_invoice_steward/` en la raíz): más simple, pero permite que los tests pasen importando archivos sin instalar el paquete.
 - **uv / poetry:** más rápidos y con lockfile integrado; se pueden adoptar más adelante con un nuevo ADR sin cambiar la estructura.
 
 ## Consecuencias

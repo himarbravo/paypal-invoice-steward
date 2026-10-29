@@ -7,10 +7,10 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-import my_project
+import paypal_invoice_steward
 
-PACKAGE = my_project.__name__
-ROOT = Path(my_project.__file__).parent
+PACKAGE = paypal_invoice_steward.__name__
+ROOT = Path(paypal_invoice_steward.__file__).parent
 
 # Subpaquete -> subpaquetes que puede importar.
 # Añadir un subpaquete de primer nivel requiere un ADR y una línea aquí.

@@ -1,6 +1,6 @@
 # AGENTS.md — Protocolo de trabajo
 
-Este documento es la fuente de verdad para cualquier agente (Claude, Codex, Copilot, etc.) o persona que trabaje en **my-project**. Si una instrucción puntual del usuario contradice este archivo, manda la del usuario; si el cambio es permanente, actualiza este archivo en el mismo PR.
+Este documento es la fuente de verdad para cualquier agente (Claude, Codex, Copilot, etc.) o persona que trabaje en **paypal-invoice-steward**. Si una instrucción puntual del usuario contradice este archivo, manda la del usuario; si el cambio es permanente, actualiza este archivo en el mismo PR.
 
 ---
 
@@ -122,8 +122,8 @@ chore(ci): cachear dependencias
 Python ≥ 3.11, *src layout*. **Guía completa: [docs/project-structure.md](docs/project-structure.md)**. Léela antes de crear archivos o carpetas.
 
 Resumen:
-- Código en `src/my_project/{core,persistence,ui}/`. Cada `__init__.py` declara la responsabilidad del subpaquete y de quién puede depender.
-- Tests en `tests/`, misma estructura que `src/my_project/`.
+- Código en `src/paypal_invoice_steward/{core,persistence,ui}/`. Cada `__init__.py` declara la responsabilidad del subpaquete y de quién puede depender.
+- Tests en `tests/`, misma estructura que `src/paypal_invoice_steward/`.
 - Utilidades de desarrollo en `scripts/`; documentación en `docs/`.
 - Dependencias: `core` no depende de nadie, `persistence` solo de `core`, y nadie importa `ui`. Lo comprueba `tests/test_architecture.py`: si falla, se corrige el import, no el test.
 - Una carpeta o subpaquete de primer nivel nuevo requiere issue + ADR antes de crearse.
@@ -139,7 +139,7 @@ Ejecútalos antes de abrir o actualizar un PR.
 |--------------|---------|
 | Entorno      | `python3 -m venv .venv && source .venv/bin/activate` |
 | Instalar     | `pip install -e ".[dev]"` |
-| Ejecutar     | `my-project` (o `python -m my_project`) |
+| Ejecutar     | `paypal-invoice-steward` (o `python -m paypal_invoice_steward`) |
 | Tests        | `pytest` |
 | Lint         | `ruff check .` |
 | Formato      | `ruff format .` (CI comprueba con `ruff format --check .`) |

@@ -8,6 +8,6 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Added
 
-- Esqueleto del proyecto: paquete `my_project`, tests, documentación, protocolo de trabajo y CI.
+- Esqueleto del proyecto: paquete `paypal_invoice_steward`, tests, documentación, protocolo de trabajo y CI.
 
-[Unreleased]: https://github.com/OWNER/my-project/commits/main
+[Unreleased]: https://github.com/himarbravo/paypal-invoice-steward/commits/main

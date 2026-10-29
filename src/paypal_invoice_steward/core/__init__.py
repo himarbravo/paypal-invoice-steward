@@ -5,5 +5,5 @@ vienen los datos ni cómo se muestran. También las interfaces que implementan
 las demás capas.
 
 Dependencias permitidas: solo la biblioteca estándar y librerías de cálculo.
-`core` no importa ningún otro subpaquete de `my_project`.
+`core` no importa ningún otro subpaquete de `paypal_invoice_steward`.
 """

@@ -1,37 +1,8 @@
-# My Project
+# Paypal Invoice Steward
 
-Descripción corta del proyecto.
+AI agent that chases late PayPal invoices and forecasts cash flow; it proposes, a human confirms.
 
 > Estado: desarrollo inicial (`0.x`). Ver [CHANGELOG.md](CHANGELOG.md).
-
-<!-- seed:start -->
-## Cómo usar esta semilla
-
-Este repositorio es una plantilla: un proyecto Python vacío con el protocolo de trabajo, la documentación base y la CI ya montados. El nombre `my-project` es provisional.
-
-1. Crea tu repositorio a partir de la plantilla y clónalo:
-   ```bash
-   gh repo create <usuario>/<nombre> --private --template himarbravo/project-seed --clone
-   cd <nombre>
-   ```
-2. Renombra el proyecto. El script sustituye el nombre en todos los archivos, renombra el paquete, borra esta sección y se borra a sí mismo:
-   ```bash
-   python3 scripts/init_project.py <nombre> --owner <usuario> --author "<Tu nombre>" \
-       --description "<Qué hace el proyecto>"
-   ```
-3. Instala, comprueba y sube el primer commit:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate
-   pip install -e ".[dev]"
-   ./scripts/check.sh
-   git add -A && git commit -m "chore: inicializar proyecto desde la semilla" && git push
-   ```
-4. Configura el repositorio: crea los labels que usa [AGENTS.md](AGENTS.md), deja solo squash merge y protege `main`. Va después del primer push, porque a partir de aquí ya no se puede empujar directo a `main`:
-   ```bash
-   ./scripts/setup_github.sh
-   ```
-5. Adapta lo que es propio de cada proyecto: [docs/architecture.md](docs/architecture.md), [docs/project-structure.md](docs/project-structure.md) y la sección 4 de [AGENTS.md](AGENTS.md).
-<!-- seed:end -->
 
 ## Requisitos
 
@@ -40,8 +11,8 @@ Este repositorio es una plantilla: un proyecto Python vacío con el protocolo de
 ## Instalación para desarrollo
 
 ```bash
-git clone https://github.com/OWNER/my-project.git
-cd my-project
+git clone https://github.com/himarbravo/paypal-invoice-steward.git
+cd paypal-invoice-steward
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
@@ -50,7 +21,7 @@ pip install -e ".[dev]"
 ## Uso
 
 ```bash
-my-project              # o: python -m my_project
+paypal-invoice-steward              # o: python -m paypal_invoice_steward
 ```
 
 ## Desarrollo

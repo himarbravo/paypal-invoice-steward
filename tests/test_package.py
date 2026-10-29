@@ -1,6 +1,6 @@
-import my_project
+import paypal_invoice_steward
 
 
 def test_version_is_defined():
-    assert isinstance(my_project.__version__, str)
-    assert my_project.__version__
+    assert isinstance(paypal_invoice_steward.__version__, str)
+    assert paypal_invoice_steward.__version__

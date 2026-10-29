@@ -7,7 +7,7 @@ Antes de crear un archivo, consulta esta guía. Si algo no encaja en ningún sit
 ## 1. Vista general
 
 ```
-my-project/
+paypal-invoice-steward/
 ├── AGENTS.md                  # Protocolo de trabajo (GitHub, ramas, commits, PRs)
 ├── CLAUDE.md                  # Importa AGENTS.md para Claude Code
 ├── GEMINI.md                  # Importa AGENTS.md para Gemini CLI
@@ -31,14 +31,14 @@ my-project/
 │   ├── versioning.md          # Cómo se versiona y se publica una release
 │   └── adr/                   # Registro de decisiones de arquitectura
 │
-├── src/my_project/            # CÓDIGO DEL PROYECTO (el paquete Python)
+├── src/paypal_invoice_steward/            # CÓDIGO DEL PROYECTO (el paquete Python)
 │   ├── __init__.py            # Expone __version__
-│   ├── __main__.py            # Punto de entrada (python -m my_project)
+│   ├── __main__.py            # Punto de entrada (python -m paypal_invoice_steward)
 │   ├── core/                  # Núcleo del dominio: conceptos, reglas e interfaces
 │   ├── persistence/           # Entrada/salida: archivos, red, bases de datos, APIs
 │   └── ui/                    # CLI y visualización
 │
-├── tests/                     # Pruebas: misma estructura que src/my_project/
+├── tests/                     # Pruebas: misma estructura que src/paypal_invoice_steward/
 │   ├── core/  persistence/  ui/
 │   ├── test_architecture.py   # Hace cumplir las reglas de dependencia
 │   └── test_package.py
@@ -50,7 +50,7 @@ my-project/
 
 ## 2. Qué va en cada carpeta
 
-### `src/my_project/`: el producto
+### `src/paypal_invoice_steward/`: el producto
 Todo el código que se instala con el paquete. Usamos el *src layout*: así los tests se ejecutan siempre contra el paquete instalado, nunca contra archivos sueltos.
 
 Cada subpaquete describe en su `__init__.py` su responsabilidad y de qué puede depender. **Léelo antes de añadir código ahí.**
@@ -64,7 +64,7 @@ Cada subpaquete describe en su `__init__.py` su responsabilidad y de qué puede 
 Son las tres capas mínimas. Un proyecto pequeño puede borrar la que no use; uno grande añadirá subpaquetes de dominio entre `core` y `persistence` (con issue + ADR).
 
 ### `tests/`: las pruebas
-- **Espejo de `src/`**: el test de `src/my_project/core/rules.py` va en `tests/core/test_rules.py`.
+- **Espejo de `src/`**: el test de `src/paypal_invoice_steward/core/rules.py` va en `tests/core/test_rules.py`.
 - Archivos `test_<modulo>.py`, funciones `test_<comportamiento>()`.
 - Fixtures compartidas en `conftest.py`, en la carpeta del nivel más bajo donde se usen.
 - Si un test necesita aleatoriedad, **fija la semilla**.
@@ -110,9 +110,9 @@ Estas reglas las comprueba [tests/test_architecture.py](../tests/test_architectu
 
 | Si vas a…                                  | Va en                                   |
 |--------------------------------------------|-----------------------------------------|
-| Añadir un concepto o regla del dominio     | `src/my_project/core/`                  |
-| Leer o guardar un nuevo formato de datos   | `src/my_project/persistence/`           |
-| Añadir un comando o una vista              | `src/my_project/ui/`                    |
+| Añadir un concepto o regla del dominio     | `src/paypal_invoice_steward/core/`                  |
+| Leer o guardar un nuevo formato de datos   | `src/paypal_invoice_steward/persistence/`           |
+| Añadir un comando o una vista              | `src/paypal_invoice_steward/ui/`                    |
 | Añadir un test                             | `tests/`, en la ruta espejo             |
 | Añadir un script de desarrollo             | `scripts/`                              |
 | Añadir una dependencia                     | `pyproject.toml` (justifícalo en el PR) |
