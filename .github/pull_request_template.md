@@ -1,22 +1,22 @@
-## Qué cambia
+## What changes
 
-<!-- Resumen en 1-3 frases. -->
+<!-- Summary in 1-3 sentences. -->
 
 Closes #
 
-## Por qué
+## Why
 
-<!-- Motivación o contexto. Enlaza ADR si aplica. -->
+<!-- Motivation or context. Link the ADR if there is one. -->
 
-## Cómo probarlo
+## How to test it
 
-<!-- Pasos o comandos para verificar el cambio. -->
+<!-- Steps or commands to verify the change. -->
 
 ## Checklist
 
-- [ ] Rebase sobre `main` sin conflictos
-- [ ] Lint y tests pasan en local
-- [ ] Tests añadidos/actualizados
-- [ ] Docs actualizadas (README, AGENTS.md, ADR) si aplica
-- [ ] Entrada en `CHANGELOG.md` → `[Unreleased]` si cambia algo visible para el usuario
-- [ ] Sin secretos ni ficheros ajenos a la tarea
+- [ ] Rebased on `main` with no conflicts
+- [ ] Lint and tests pass locally
+- [ ] Tests added or updated
+- [ ] Docs updated (README, AGENTS.md, ADR) if applicable
+- [ ] Entry in `CHANGELOG.md` → `[Unreleased]` if something visible to the user changes
+- [ ] No secrets and no files unrelated to the task

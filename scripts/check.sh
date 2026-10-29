@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Ejecuta los mismos checks que la CI. Úsalo antes de abrir o actualizar un PR.
+# Runs the same checks as CI. Use it before opening or updating a PR.
 #
-# Uso (desde la raíz, con el entorno activado):  ./scripts/check.sh
+# Usage (from the repository root, with the environment activated):  ./scripts/check.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

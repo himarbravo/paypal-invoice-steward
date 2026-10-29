@@ -1,20 +1,20 @@
 ---
 name: Bug
-about: Algo no funciona como debería
+about: Something does not work as it should
 title: "fix: "
 labels: type:bug
 ---
 
-## Comportamiento actual
+## Current behaviour
 
-## Comportamiento esperado
+## Expected behaviour
 
-## Cómo reproducirlo
+## How to reproduce
 
-<!-- Pasos o comandos, datos de entrada y versión. -->
+<!-- Steps or commands, input data and version. -->
 
 1. 
 
-## Criterios de aceptación
+## Acceptance criteria
 
-- [ ] El caso queda cubierto por un test
+- [ ] The case is covered by a test

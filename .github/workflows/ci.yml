@@ -23,7 +23,7 @@ jobs:
       - run: mypy
       - run: pytest
 
-  # Check único que exige la protección de rama: no cambia de nombre aunque cambie la matriz.
+  # Single check required by branch protection: its name stays the same even if the matrix changes.
   required:
     if: always()
     needs: [check]

@@ -5,31 +5,31 @@ on:
     types: [opened, edited, reopened, synchronize]
 
 jobs:
-  # Hace cumplir las convenciones de AGENTS.md (secciones 2.2 y 2.4).
+  # Enforces the AGENTS.md conventions (sections 2.2 and 2.4).
   conventions:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Título del PR en formato Conventional Commits
+      - name: PR title in Conventional Commits format
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
           pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .*[^.]$'
           if [[ ! "$TITLE" =~ $pattern ]]; then
-            echo "::error::El título debe ser '<tipo>(<ámbito opcional>): <resumen>' y no acabar en punto. Ver AGENTS.md 2.3."
+            echo "::error::The title must be '<type>(<optional scope>): <summary>' and must not end with a period. See AGENTS.md 2.3."
             exit 1
           fi
           if [ "${#TITLE}" -gt 72 ]; then
-            echo "::error::El título tiene ${#TITLE} caracteres; el máximo es 72."
+            echo "::error::The title has ${#TITLE} characters; the maximum is 72."
             exit 1
           fi
-      - name: Nombre de la rama
+      - name: Branch name
         env:
           BRANCH: ${{ github.head_ref }}
         run: |
           pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore)/[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
           release='^chore/release-v[0-9]+\.[0-9]+\.[0-9]+'
           if [[ ! "$BRANCH" =~ $pattern && ! "$BRANCH" =~ $release ]]; then
-            echo "::error::La rama debe llamarse '<tipo>/<n-issue>-<descripcion-kebab>'. Ver AGENTS.md 2.2."
+            echo "::error::The branch must be named '<type>/<issue-n>-<kebab-description>'. See AGENTS.md 2.2."
             exit 1
           fi

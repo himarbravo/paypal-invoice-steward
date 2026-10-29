@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
-# Configura el repositorio de GitHub para que el protocolo de AGENTS.md se cumpla solo:
-# labels, solo squash merge y protección de `main`.
+# Configures the GitHub repository so the AGENTS.md protocol enforces itself:
+# labels, squash merge only and `main` protection.
 #
-# Lo ejecuta una persona con permisos de administración, una vez, DESPUÉS del
-# primer push a `main` (con la protección activa ya no se puede empujar directo).
+# A person with admin rights runs it once, AFTER the first push to `main`
+# (once protection is on, nobody can push directly).
 #
-# Uso (desde la raíz):  ./scripts/setup_github.sh
+# Usage (from the repository root):  ./scripts/setup_github.sh
 set -euo pipefail
 
 repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-echo "Configurando $repo"
+echo "Configuring $repo"
 
 label() { gh label create "$1" --color "$2" --description "$3" --force -R "$repo" >/dev/null; }
-label "type:feature"  "1D76DB" "Nueva funcionalidad o mejora"
-label "type:bug"      "D73A4A" "Algo no funciona como debería"
-label "type:refactor" "5319E7" "Cambio interno sin cambiar comportamiento"
-label "type:docs"     "0E8A16" "Documentación"
-label "type:chore"    "BFBFBF" "Mantenimiento, CI, configuración"
-echo "Labels creados."
+label "type:feature"  "1D76DB" "New functionality or improvement"
+label "type:bug"      "D73A4A" "Something does not work as it should"
+label "type:refactor" "5319E7" "Internal change without behaviour change"
+label "type:docs"     "0E8A16" "Documentation"
+label "type:chore"    "BFBFBF" "Maintenance, CI, configuration"
+echo "Labels created."
 
 gh repo edit "$repo" --enable-squash-merge --enable-merge-commit=false \
     --enable-rebase-merge=false --delete-branch-on-merge
-echo "Merge: solo squash, y la rama se borra al mergear."
+echo "Merge: squash only, and the branch is deleted on merge."
 
-# Nadie empuja directo a main (tampoco administradores); todo PR necesita la CI en verde.
-# No se exigen aprobaciones para que funcione en proyectos de una sola persona.
+# Nobody pushes directly to main (admins included); every PR needs green CI.
+# No approvals are required, so it works for one-person projects.
 if gh api -X PUT "repos/$repo/branches/main/protection" --input - >/dev/null <<'JSON'
 {
   "required_status_checks": { "strict": true, "contexts": ["required", "conventions"] },
@@ -37,9 +37,9 @@ if gh api -X PUT "repos/$repo/branches/main/protection" --input - >/dev/null <<'
 }
 JSON
 then
-    echo "Rama main protegida."
+    echo "Branch main protected."
 else
-    echo "No se pudo proteger main. En repositorios privados hace falta un plan de pago" >&2
-    echo "de GitHub; hasta entonces, la regla depende de que se respete AGENTS.md." >&2
+    echo "Could not protect main. Private repositories need a paid GitHub plan;" >&2
+    echo "until then, the rule depends on people following AGENTS.md." >&2
     exit 1
 fi
