@@ -13,7 +13,7 @@ Pending.
 | Module        | Status  | Notes |
 |---------------|---------|-------|
 | `core`        | In progress | `models`, `ports`, `forecast`, `proposals` ([ADR 0004](adr/0004-invoice-steward-architecture.md)) |
-| `persistence` | In progress | `store` (SQLite `ProposalStore`) |
+| `persistence` | In progress | `store` (SQLite `ProposalStore`), `paypal_sandbox`, `paypal_demo` |
 | `ui`          | Pending | |
 
 ## Relevant decisions
