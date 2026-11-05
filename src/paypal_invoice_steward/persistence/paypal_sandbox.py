@@ -175,6 +175,8 @@ class SandboxPayPal:
             raise PayPalError("PayPal token lacks verified invoicing authorization.")
         if self._expected_app_id and app_id != self._expected_app_id:
             raise PayPalError("PayPal sandbox app ID does not match the configured app.")
+        if expiry is None or isinstance(expiry, bool):
+            raise PayPalError("PayPal returned an invalid OAuth token lifetime.")
         try:
             lifetime = float(expiry)
         except (TypeError, ValueError):
