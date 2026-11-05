@@ -69,3 +69,14 @@
 **OPEN: software validation.** For each capability, require scenario fixtures, expected financial outputs, adversarial/authorization cases, test run artifact, code commit and independent PayPal sandbox proof when applicable. Record source version/date and evidence tier. No issues should be closed based on this document alone.
 
 **Verdict:** professional *scope is defensible as a proposed copilot benchmark*, with direct, derived and product-specific requirements explicitly distinguished above. The product is **not professionally certified**, and its implementation is **not yet validated**.
+
+
+## Independent verification status (2026-11-05)
+
+**Confirmed:** O*NET occupation 43-3011.00 (2026), Tasks, explicitly lists monitoring overdue accounts, documenting collections, customer questions, repayment arrangements and posting payments. O*NET 43-3021.00 (2026), Tasks, lists invoice preparation, billing-data verification, discrepancies and supporting records. These are occupational tasks, not authorization to automate them.
+
+**Unconfirmed in this review:** Exact CICM PDF section wording, APQC process identifiers and formulas, PayPal endpoint behavior, NIST/OWASP control-level mappings. The live APQC and PayPal references could not be retrieved. Prior mappings must remain provisional.
+
+**Not passed:** No successful automated test execution or authenticated PayPal sandbox evidence was obtained. The three-invoice scenario (partial payment, dispute and promise to pay) is not supported end-to-end. Aging currently reports face amounts rather than verified residual balances.
+
+**Final verdict:** Partial professional source validation only. Runtime and sandbox validation remain open; no issue should be closed on source traceability alone.
