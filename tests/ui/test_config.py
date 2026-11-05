@@ -17,6 +17,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory)
         "STEWARD_MAX_INVOICE",
         "STEWARD_REMINDER_COOLDOWN_DAYS",
         "STEWARD_SANDBOX_WRITES",
+        "STEWARD_SANDBOX_LLM",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)  # no stray .env file
@@ -124,3 +125,65 @@ def test_optional_paypal_sandbox_app_pin_from_environment(
     settings = load_settings()
     assert settings.paypal_app_id == "APP-SANDBOX-TEST"
     assert settings.sandbox_writes_enabled is False
+
+
+def test_sandbox_llm_requires_explicit_operator_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "synthetic-key")
+    with pytest.raises(RuntimeError, match="STEWARD_SANDBOX_LLM=enabled"):
+        load_settings()
+
+
+def test_sandbox_llm_opt_in_preserves_read_only_paypal_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "synthetic-key")
+    monkeypatch.setenv("STEWARD_SANDBOX_LLM", "enabled")
+    settings = load_settings()
+    assert settings.llm_enabled
+    assert settings.sandbox_llm_enabled
+    assert settings.mode == "sandbox"
+    assert settings.sandbox_writes_enabled is False
+
+
+@pytest.mark.parametrize("invalid", ["yes", "true", "1", "ENABLED", "on"])
+def test_invalid_sandbox_llm_opt_in_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, invalid: str
+) -> None:
+    monkeypatch.setenv("STEWARD_SANDBOX_LLM", invalid)
+    with pytest.raises(RuntimeError, match="STEWARD_SANDBOX_LLM"):
+        load_settings()
+
+
+def test_sandbox_llm_opt_in_without_external_model_key_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("STEWARD_SANDBOX_LLM", "enabled")
+    with pytest.raises(RuntimeError, match="requires ANTHROPIC_API_KEY"):
+        load_settings()
+
+
+def test_sandbox_llm_opt_in_not_valid_in_demo_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STEWARD_SANDBOX_LLM", "enabled")
+    with pytest.raises(RuntimeError, match="requires sandbox mode"):
+        load_settings()
+
+
+def test_sandbox_with_no_external_model_stays_offline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    settings = load_settings()
+    assert settings.mode == "sandbox"
+    assert not settings.llm_enabled
+    assert not settings.sandbox_llm_enabled

@@ -26,6 +26,7 @@ class Settings:
     max_invoice_amount: float = 10_000.0
     reminder_cooldown_days: int = 3
     sandbox_writes_enabled: bool = False
+    sandbox_llm_enabled: bool = False
 
     @property
     def llm_enabled(self) -> bool:
@@ -55,6 +56,19 @@ def load_settings() -> Settings:
         raise RuntimeError("STEWARD_SANDBOX_WRITES must be 'enabled' or 'disabled'.")
     if writes_setting == "enabled" and mode != "sandbox":
         raise RuntimeError("STEWARD_SANDBOX_WRITES=enabled requires sandbox mode.")
+    llm_key = os.getenv("ANTHROPIC_API_KEY") or None
+    llm_setting = (os.getenv("STEWARD_SANDBOX_LLM") or "").strip()
+    if llm_setting not in ("", "enabled", "disabled"):
+        raise RuntimeError("STEWARD_SANDBOX_LLM must be 'enabled' or 'disabled'.")
+    if llm_setting == "enabled" and mode != "sandbox":
+        raise RuntimeError("STEWARD_SANDBOX_LLM=enabled requires sandbox mode.")
+    if mode == "sandbox" and llm_key and llm_setting != "enabled":
+        raise RuntimeError(
+            "Sandbox external AI requires STEWARD_SANDBOX_LLM=enabled. "
+            "The model receives raw operator chat, which may include personal data."
+        )
+    if mode == "sandbox" and llm_setting == "enabled" and not llm_key:
+        raise RuntimeError("STEWARD_SANDBOX_LLM=enabled requires ANTHROPIC_API_KEY.")
     if mode == "sandbox" and not (client_id and client_secret):
         raise RuntimeError(
             "STEWARD_MODE=sandbox needs PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET "
@@ -65,11 +79,12 @@ def load_settings() -> Settings:
         paypal_client_secret=client_secret,
         paypal_app_id=os.getenv("PAYPAL_APP_ID") or None,
         paypal_base_url=os.getenv("PAYPAL_BASE_URL", SANDBOX_URL),
-        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY") or None,
+        anthropic_api_key=llm_key,
         anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5"),
         db_path=os.getenv("STEWARD_DB", "data/steward.db"),
         mode=mode,
         max_invoice_amount=float(os.getenv("STEWARD_MAX_INVOICE", "10000")),
         reminder_cooldown_days=int(os.getenv("STEWARD_REMINDER_COOLDOWN_DAYS", "3")),
         sandbox_writes_enabled=writes_setting == "enabled",
+        sandbox_llm_enabled=llm_setting == "enabled",
     )
