@@ -484,3 +484,16 @@ Section 2 (A/B/C source hierarchy, acceptance contract and six workstream object
 **Accounting:** 3 + 4 + 8 + 14 + 3 + 3 = **35 distinct requirements**, each with one primary delivery epic. Each child issue links its delivery epic; dependencies across epics are allowed and expected. The six epics are functional ownership categories, not a claim that all security/evaluation work waits until the end. Tests and approvals are required in every vertical delivery.
 
 **Suggested execution order:** foundation contracts and security gates (#76 + #80), invoicing and trustworthy synchronization (#77 + #75), financial reconciliation (#78), supervised collections (#79), then integrated benchmark verification (#81), while running relevant tests continuously.
+
+
+## 18. Organization conflict audit and resolution (2026-11-05)
+
+**Finding:** The previous #38–40 issues claimed to be authoritative milestone-equivalent epics, conflicting with the newer six functional delivery epics #76–81. They have been **retitled [BENCHMARK INDEX]** and their bodies explicitly demoted to secondary professional coverage indices. They remain open to preserve historical evidence and cross-role traceability. They are **not release gates** and should not be used to duplicate delivery issues.
+
+**One-to-one primary ownership:** all 35 requirements #41–75 belong to exactly one functional delivery epic as specified in §17. Child issues have reciprocal 'Delivery ownership' sections; the legacy 30 also link their corresponding professional coverage index (#38, #39 or #40). The five cross-cutting #71–75 have no persona benchmark parent. No issue was deleted, closed, renumbered or moved to another repository.
+
+**Do not confuse:** functional epic ownership (release grouping), professional benchmark index (cross-cutting evaluation), A/B/C source tier (evidence authority), and issue work type (requirements/implementation/security/tests). A09 (#59) has delivery epic #81 Evaluation and professional index #39 AR: **not duplicated**. Similarly C08 (#48) and O08 (#68) are evaluation-owned but profession-indexed.
+
+**Remaining GitHub limitations:** these are Markdown-linked issues, not GitHub native milestone or parent/sub-issue relationships. Epic checkboxes are not automatically synchronized with child issue states. If native project fields or sub-issues become available, migrate links without changing the stable issue IDs. Priority P0/P1 on an epic is planning guidance, not an automatic override of each child priority.
+
+**Single-merchant scope:** #73 is limited to one merchant in sandbox for MVP; it still requires secure credentials and explicit permissions. Multi-merchant OAuth/tenant onboarding is deferred. Any wording in #73 or historical documentation about multi-tenant support describes a future threat model or exclusion, not an MVP feature commitment.
