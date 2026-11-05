@@ -6,12 +6,11 @@ from paypal_invoice_steward.core.proposals import (
     Conflict,
     HashMismatch,
     NotFound,
+    Policy,
     PolicyError,
     ProposalService,
-    Policy,
     SandboxWritesDisabled,
 )
-
 from paypal_invoice_steward.persistence.store import SqliteProposalStore
 
 from .conftest import INVOICE, TODAY, FakePayPal
