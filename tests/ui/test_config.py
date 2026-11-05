@@ -127,7 +127,6 @@ def test_optional_paypal_sandbox_app_pin_from_environment(
     assert settings.sandbox_writes_enabled is False
 
 
-
 def test_sandbox_llm_requires_explicit_operator_opt_in(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
