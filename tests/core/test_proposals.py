@@ -208,7 +208,9 @@ def test_sandbox_invoice_confirm_is_read_only_by_default() -> None:
             service.confirm(proposal["id"], proposal["payload_hash"])
     assert service.get(proposal["id"])["status"] == "pending"
     assert [e["event"] for e in service.get(proposal["id"])["events"]] == [
-        "proposed", "refused", "refused"
+        "proposed",
+        "refused",
+        "refused",
     ]
     assert port.sent_log == []
     assert len(port.invoices) == before
