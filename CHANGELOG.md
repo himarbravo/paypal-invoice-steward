@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+
+- Reject untrusted sandbox-lookalike endpoints, partial PayPal credentials and unsupported modes instead of silently falling back to demo mode (#73).
+
 ### Added
 
 - Project skeleton: `paypal_invoice_steward` package, tests, documentation, working protocol and CI.
