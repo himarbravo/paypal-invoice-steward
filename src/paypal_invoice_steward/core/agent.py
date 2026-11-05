@@ -180,6 +180,8 @@ def _project_for_model(name: str, data: JSON) -> JSON:
         safe = [row for row in rows if row is not None]
         return {"count": len(safe), "invoices": safe}
     if name == "get_cash_flow_forecast":
+        if "message" in data:
+            return {"message": "There are no open invoices to forecast."}
         result: JSON = {}
         for currency, entry in data.items():
             if _model_currency(currency) == "UNKNOWN":
