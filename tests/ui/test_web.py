@@ -193,7 +193,6 @@ def test_agent_failure_does_not_log_provider_secret(
     assert "LEAK_TEST_SECRET" not in caplog.text
 
 
-
 def test_direct_sandbox_settings_cannot_bypass_llm_data_transfer_opt_in() -> None:
     settings = Settings(
         mode="sandbox",
