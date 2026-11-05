@@ -146,8 +146,8 @@ TOOLS: list[dict[str, Any]] = [
 ]
 
 
-_OPAQUE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}\\Z")
-_CURRENCY = re.compile(r"[A-Z]{3}\\Z")
+_OPAQUE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}\Z")
+_CURRENCY = re.compile(r"[A-Z]{3}\Z")
 
 
 def _model_identifier(value: Any) -> str | None:
