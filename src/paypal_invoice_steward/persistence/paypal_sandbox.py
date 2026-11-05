@@ -117,8 +117,10 @@ class SandboxPayPal:
         today: Callable[[], date] = date.today,
         timeout: float = 15.0,
     ) -> None:
-        if "sandbox" not in base_url:
-            raise ValueError("Invoice Steward only talks to the PayPal sandbox.")
+        if base_url.rstrip("/") != SANDBOX_URL:
+            raise ValueError("Invoice Steward only connects to the official PayPal sandbox.")
+        if not client_id.strip() or not client_secret.strip():
+            raise ValueError("PayPal sandbox credentials must not be empty.")
         self._client_id = client_id
         self._client_secret = client_secret
         self._today = today
