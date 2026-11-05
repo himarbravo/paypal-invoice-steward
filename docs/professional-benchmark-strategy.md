@@ -341,3 +341,21 @@ Build shared services once, and let different professional role evaluations exer
 
 ### Source verification protocol
 Before changing an issue from proposed to complete, reviewers must (a) verify the referenced professional document's exact task/section and revision; (b) record the resulting engineering requirement; (c) verify PayPal API support and permissions; (d) run automated tests and sandbox scenarios; and (e) attach evidence to the issue. If a URL is inaccessible or a source does not actually support the claimed requirement, mark it *unverified* and replace it rather than inventing normative authority.
+
+## 11. Backlog audit remediation and authoritative execution index (2026-11-05)
+
+**Audit resolution:** all 30 discrete capabilities now have GitHub issues. Previous broad issues #26–37 are closed as **superseded planning duplicates, not completed work**. Epics #38–40 now track ten capabilities each. Native milestones are still unavailable through the connected GitHub API; the epics serve as explicit milestone equivalents. Historical text in earlier sections describing "proposed milestone names" is superseded by this index.
+
+| Professional role | Epic | Requirements | Implementation | Tests | Security | All capabilities |
+|---|---|---|---|---|---|---|
+| Credit Controller | [#38](https://github.com/himarbravo/paypal-invoice-steward/issues/38) | C01 #41, C03 #43 | C02 #42, C04 #44, C05 #45, C06 #46, C07 #47 | C08 #48 | C09 #49, C10 #50 | [#41–50](https://github.com/himarbravo/paypal-invoice-steward/issues/38) |
+| Accounts Receivable Specialist | [#39](https://github.com/himarbravo/paypal-invoice-steward/issues/39) | A01 #51, A03 #53, A06 #56 | A02 #52, A04 #54, A05 #55, A07 #57, A08 #58 | A09 #59 | A10 #60 | [#51–60](https://github.com/himarbravo/paypal-invoice-steward/issues/39) |
+| Billing & Collections Operator | [#40](https://github.com/himarbravo/paypal-invoice-steward/issues/40) | O06 #66 | O01 #61, O02 #62, O03 #63, O04 #64, O05 #65, O07 #67 | O08 #68 | O09 #69, O10 #70 | [#61–70](https://github.com/himarbravo/paypal-invoice-steward/issues/40) |
+
+**Priority-critical dependencies:** A01/O06 → A05 → A02/A09 → C06/O03 → C02/C03/O05 → C04/O02 → A03/A08. O09/O10/A10/C09 are **cross-cutting release gates**, not work postponed until the end. A02's current code is a partial implementation of face-amount aging; it does not satisfy verified outstanding balance requirements and must remain open.
+
+**Required source evidence per issue:** exact CICM competence/syllabus section, APQC PCF process identifier, or O*NET task identifier and date; official PayPal API operation and constraints for integrations; OWASP/NIST control identifiers for safety. General organization landing pages are insufficient for completion. The current source links are provisional pointers pending that verification. Do not imply these organizations endorse or certify the feature list.
+
+**Minimum acceptance contract:** a realistic fixture with expected output; financial invariants and currency treatment; conflicting/unknown data behavior; permission and approval policy; normal and adversarial tests; reproducible CI artifact; separate offline/sandbox evidence tier. No feature may be closed merely because code exists.
+
+**Audit status:** backlog completeness corrected; source-section validation, actual tests, runtime integration and native milestone creation remain open work. No claim of release readiness is made.
