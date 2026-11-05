@@ -88,6 +88,7 @@ def build_port(settings: Settings, today: Callable[[], date]) -> PayPalPort:
             settings.paypal_client_secret,
             settings.paypal_base_url,
             today=today,
+            expected_app_id=settings.paypal_app_id,
         )
     if settings.mode == "demo":
         return DemoPayPal(today=today)
