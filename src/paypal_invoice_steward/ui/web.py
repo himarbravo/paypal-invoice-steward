@@ -152,9 +152,7 @@ def create_app(
     def health() -> JSON:
         return {
             "mode": port.mode,
-            "outbound_actions_enabled": (
-                port.mode != "sandbox" or settings.sandbox_writes_enabled
-            ),
+            "outbound_actions_enabled": (port.mode != "sandbox" or settings.sandbox_writes_enabled),
             "agent": assistant.mode,
             "model": settings.anthropic_model if isinstance(assistant, LLMAgent) else None,
             "today": today().isoformat(),
