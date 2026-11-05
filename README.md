@@ -38,6 +38,22 @@ Demo mode uses a built-in fake PayPal with five customers and 23 invoices, so ev
 
 The PayPal client only accepts `https://api-m.sandbox.paypal.com` (an optional trailing slash is allowed), never a hostname that merely contains `sandbox`. Incomplete credentials or an unrecognized `STEWARD_MODE` cause startup to fail instead of silently showing fake data. The MVP connects to one merchant's own sandbox app credentials; third-party merchant onboarding and verified merchant identity/scopes are not yet implemented.
 
+## Hackathon demo access boundary
+
+**This release has no user login. Run it only on your own computer.** The supported
+CLI accepts only `127.0.0.1`, `localhost` and `::1` as bind addresses; the
+application also rejects direct remote peers, untrusted Host headers and cross-origin
+browser writes. **Do not publish it using a reverse proxy, tunnel, exposed Docker
+port or hosted URL**: those can bypass the local-only assumption. A hosted demo
+requires authentication, HTTPS and session/CSRF protection first.
+
+The offline demo uses **synthetic invoices and a fake PayPal backend**. It is useful
+to test safely, but it does **not** establish working PayPal API integration or
+meaningful AI use for hackathon judging. For that, run a separate test against your
+**own PayPal sandbox business account** and AI tool, using credentials kept in a
+local, uncommitted `.env`. Never put real credentials or private invoices in a
+public repository, public video or test fixtures.
+
 ## Safety model
 
 | Risk | What prevents it |
