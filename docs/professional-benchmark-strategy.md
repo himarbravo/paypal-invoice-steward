@@ -359,3 +359,8 @@ Before changing an issue from proposed to complete, reviewers must (a) verify th
 **Minimum acceptance contract:** a realistic fixture with expected output; financial invariants and currency treatment; conflicting/unknown data behavior; permission and approval policy; normal and adversarial tests; reproducible CI artifact; separate offline/sandbox evidence tier. No feature may be closed merely because code exists.
 
 **Audit status:** backlog completeness corrected; source-section validation, actual tests, runtime integration and native milestone creation remain open work. No claim of release readiness is made.
+
+
+## 12. Validated evidence register
+
+See [Professional benchmark evidence validation](professional-benchmark-evidence.md) for the 2026-11-05 source-by-source assessment of all 30 capabilities. That document distinguishes directly supported professional tasks, derived product features, and independent software safety/testing decisions. Its qualifications override any earlier implication that all proposed features are formally mandated by CICM, APQC, or O*NET.
