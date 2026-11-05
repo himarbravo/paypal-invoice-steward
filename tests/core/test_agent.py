@@ -2,6 +2,8 @@ import json
 from types import SimpleNamespace as NS
 from typing import Any
 
+import pytest
+
 from paypal_invoice_steward.core.agent import (
     PROPOSE_TOOLS,
     READ_TOOLS,
@@ -10,6 +12,8 @@ from paypal_invoice_steward.core.agent import (
     OfflineAgent,
     Toolbox,
 )
+from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
 from paypal_invoice_steward.core.proposals import ProposalService
 
 from .conftest import TODAY, FakePayPal
@@ -121,3 +125,24 @@ def test_offline_agent_forecast_and_fallback(service: ProposalService, port: Fak
     agent = OfflineAgent(service, port, lambda: TODAY)
     assert "Next 8 weeks (EUR)" in agent.run("s", "What is my cash flow forecast?").text
     assert "Offline demo mode" in agent.run("s", "hello").text
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [PayPalError("LEAK_TEST_SECRET", 422), PayPalUncertain("LEAK_TEST_SECRET")],
+)
+def test_provider_errors_return_safe_tool_results(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+) -> None:
+    def broken_list() -> list[Invoice]:
+        raise failure
+
+    monkeypatch.setattr(port, "list_invoices", broken_list)
+    content, is_error = Toolbox(service, port, lambda: TODAY).run("list_invoices", {})
+    assert is_error
+    assert json.loads(content)["error"].startswith("PayPal")
+    assert "LEAK_TEST_SECRET" not in content
+    assert port.sent_log == []
