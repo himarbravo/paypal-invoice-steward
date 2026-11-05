@@ -141,7 +141,7 @@ def create_app(
         return JSONResponse({"error": safe_paypal_error(exc)}, status_code=502)
 
     @app.exception_handler(PayPalUncertain)
-    async def _paypal_uncertain(_: Request, _: PayPalUncertain) -> JSONResponse:
+    async def _paypal_uncertain(_: Request, exc: PayPalUncertain) -> JSONResponse:
         return JSONResponse(
             {"error": "PayPal outcome unknown; verify before retrying."}, status_code=502
         )
