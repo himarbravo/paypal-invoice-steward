@@ -18,7 +18,7 @@ from typing import Any
 from .aging import receivables_aging
 from .forecast import forecast
 from .models import JSON
-from .ports import LLMClient, PayPalError, PayPalPort, PayPalUncertain
+from .ports import LLMClient, PayPalError, PayPalPort, PayPalUncertain, safe_paypal_error
 from .proposals import ProposalError, ProposalService
 
 Today = Callable[[], date]
@@ -163,8 +163,10 @@ class Toolbox:
             return json.dumps(self._dispatch(name, args), default=str), False
         except ProposalError as exc:
             return json.dumps({"error": str(exc)}), True
-        except (PayPalError, PayPalUncertain) as exc:
-            return json.dumps({"error": f"PayPal problem: {exc}"}), True
+        except PayPalError as exc:
+            return json.dumps({"error": safe_paypal_error(exc)}), True
+        except PayPalUncertain:
+            return json.dumps({"error": "PayPal outcome unknown; verify before retrying."}), True
         except (KeyError, TypeError, ValueError, AttributeError):
             return json.dumps({"error": "Invalid tool input."}), True
 
