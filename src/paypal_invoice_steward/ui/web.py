@@ -18,7 +18,7 @@ from .. import __version__
 from ..core.agent import AgentReply, LLMAgent, OfflineAgent
 from ..core.forecast import forecast
 from ..core.models import JSON
-from ..core.ports import PayPalError, PayPalPort, PayPalUncertain
+from ..core.ports import PayPalError, PayPalPort, PayPalUncertain, safe_paypal_error
 from ..core.proposals import ProposalError, ProposalService
 from ..persistence.anthropic_client import AnthropicClient
 from ..persistence.paypal_demo import DemoPayPal
@@ -138,11 +138,13 @@ def create_app(
 
     @app.exception_handler(PayPalError)
     async def _paypal_error(_: Request, exc: PayPalError) -> JSONResponse:
-        return JSONResponse({"error": f"PayPal refused the request: {exc}"}, status_code=502)
+        return JSONResponse({"error": safe_paypal_error(exc)}, status_code=502)
 
     @app.exception_handler(PayPalUncertain)
-    async def _paypal_uncertain(_: Request, exc: PayPalUncertain) -> JSONResponse:
-        return JSONResponse({"error": f"PayPal did not answer: {exc}"}, status_code=502)
+    async def _paypal_uncertain(_: Request, _: PayPalUncertain) -> JSONResponse:
+        return JSONResponse(
+            {"error": "PayPal outcome unknown; verify before retrying."}, status_code=502
+        )
 
     @app.get("/", response_model=None)
     def index() -> FileResponse:
@@ -183,8 +185,8 @@ def create_app(
     def chat(body: ChatIn) -> JSON | JSONResponse:
         try:
             reply = assistant.run(body.session_id, body.message.strip())
-        except Exception:  # never leak provider errors to the page
-            log.exception("agent failed")
+        except Exception as exc:  # never log provider payloads or secrets
+            log.error("agent failed (%s)", type(exc).__name__)
             return JSONResponse(
                 {"error": "The assistant is unavailable right now. Try again in a moment."},
                 status_code=502,
