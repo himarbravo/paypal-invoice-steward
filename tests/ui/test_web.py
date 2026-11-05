@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from paypal_invoice_steward.persistence.paypal_demo import DemoPayPal
 from paypal_invoice_steward.ui.config import Settings
 from paypal_invoice_steward.ui.web import create_app
 
@@ -113,3 +114,38 @@ def test_same_origin_write_reaches_the_normal_route(client: TestClient) -> None:
         "/api/proposals/unknown/dismiss", headers={"Origin": "http://testserver"}
     )
     assert response.status_code == 404
+
+
+class SandboxTestPort(DemoPayPal):
+    mode = "sandbox"
+
+
+def test_sandbox_http_confirm_is_blocked_with_default_settings() -> None:
+    port = SandboxTestPort(today=lambda: TODAY)
+    app = create_app(
+        Settings(mode="sandbox", db_path=":memory:"),
+        port=port,
+        today=lambda: TODAY,
+    )
+    client = TestClient(app)
+    proposal = chat(client, INVOICE_REQUEST)["proposals"][0]
+    reply = client.post(
+        f"/api/proposals/{proposal['id']}/confirm",
+        json={"payload_hash": proposal["payload_hash"]},
+    )
+    assert reply.status_code == 403
+    assert "read-only" in reply.json()["error"]
+    assert client.get(f"/api/proposals/{proposal['id']}").json()["status"] == "pending"
+    assert port.sent_log == []
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_sandbox_health_shows_outbound_permission_without_credentials(enabled: bool) -> None:
+    settings = Settings(mode="sandbox", sandbox_writes_enabled=enabled, db_path=":memory:")
+    port = SandboxTestPort(today=lambda: TODAY)
+    health = TestClient(create_app(settings, port=port, today=lambda: TODAY)).get(
+        "/api/health"
+    ).json()
+    assert health["mode"] == "sandbox"
+    assert health["outbound_actions_enabled"] is enabled
+    assert "client_secret" not in health
