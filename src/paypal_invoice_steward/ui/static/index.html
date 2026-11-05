@@ -459,7 +459,7 @@ $("#toggle-paid").addEventListener("click", () => { showPaid = !showPaid; render
   try {
     const health = await api("/api/health");
     const data = health.mode === "demo" ? "Demo data" : "PayPal sandbox";
-    const agent = health.agent === "claude" ? "Claude is the assistant" : "offline assistant, add an Anthropic API key to use Claude";
+    const agent = health.agent === "claude" ? "Claude enabled (chat sent to external AI)" : "offline assistant (no external AI)";
     const permissions = health.mode === "sandbox"
       ? (health.outbound_actions_enabled ? "approved sandbox sends enabled" : "read-only: outbound sends blocked")
       : "simulated actions only";
