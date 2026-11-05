@@ -2,7 +2,14 @@ import json
 from types import SimpleNamespace as NS
 from typing import Any
 
-from paypal_invoice_steward.core.agent import TOOLS, LLMAgent, OfflineAgent, Toolbox
+from paypal_invoice_steward.core.agent import (
+    PROPOSE_TOOLS,
+    READ_TOOLS,
+    TOOLS,
+    LLMAgent,
+    OfflineAgent,
+    Toolbox,
+)
 from paypal_invoice_steward.core.proposals import ProposalService
 
 from .conftest import TODAY, FakePayPal
@@ -30,15 +37,31 @@ class ScriptedClient:
 
 def test_no_tool_can_execute_anything() -> None:
     names = {t["name"] for t in TOOLS}
-    assert names == {
+    assert set(READ_TOOLS) == {
         "list_invoices",
         "get_cash_flow_forecast",
+        "get_receivables_aging",
         "list_proposals",
-        "propose_invoice",
-        "propose_reminder",
     }
+    assert set(PROPOSE_TOOLS) == {"propose_invoice", "propose_reminder"}
+    assert names == set(READ_TOOLS) | set(PROPOSE_TOOLS)
+    assert not set(READ_TOOLS) & set(PROPOSE_TOOLS)
     forbidden = ("send", "confirm", "execute", "pay", "cancel", "delete")
     assert not any(word in name for name in names for word in forbidden)
+
+
+def test_receivables_aging_tool_is_read_only(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    toolbox = Toolbox(service, port, lambda: TODAY)
+    before = len(service.list())
+    content, is_error = toolbox.run("get_receivables_aging", {})
+    assert not is_error
+    result = json.loads(content)
+    assert result["basis"] == "current open invoice face amounts"
+    assert len(service.list()) == before
+    assert toolbox.created == []
+    assert port.sent_log == []
 
 
 def test_llm_agent_only_creates_pending_proposals(
