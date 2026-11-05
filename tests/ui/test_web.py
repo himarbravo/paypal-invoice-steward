@@ -191,3 +191,35 @@ def test_agent_failure_does_not_log_provider_secret(
     assert reply.status_code == 502
     assert "LEAK_TEST_SECRET" not in reply.text
     assert "LEAK_TEST_SECRET" not in caplog.text
+
+
+
+def test_direct_sandbox_settings_cannot_bypass_llm_data_transfer_opt_in() -> None:
+    settings = Settings(
+        mode="sandbox",
+        db_path=":memory:",
+        anthropic_api_key="synthetic-key",
+        sandbox_llm_enabled=False,
+    )
+    port = SandboxTestPort(today=lambda: TODAY)
+    with pytest.raises(RuntimeError, match="STEWARD_SANDBOX_LLM=enabled"):
+        create_app(settings, port=port, today=lambda: TODAY)
+
+
+def test_explicit_sandbox_llm_opt_in_allows_safe_inprocess_stub() -> None:
+    class StubAgent:
+        mode = "offline"
+
+        def run(self, session_id: str, user_text: str) -> Any:
+            raise AssertionError("No model call should happen in this setup test.")
+
+    settings = Settings(
+        mode="sandbox",
+        db_path=":memory:",
+        anthropic_api_key="synthetic-key",
+        sandbox_llm_enabled=True,
+    )
+    port = SandboxTestPort(today=lambda: TODAY)
+    client = TestClient(create_app(settings, port=port, agent=StubAgent(), today=lambda: TODAY))
+    assert client.get("/api/health").status_code == 200
+    assert port.sent_log == []
