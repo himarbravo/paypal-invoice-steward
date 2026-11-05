@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 
 - Reject untrusted sandbox-lookalike endpoints, partial PayPal credentials and unsupported modes instead of silently falling back to demo mode (#73).
+- Reject non-loopback HTTP clients, forged Host headers, cross-origin browser writes and non-loopback bind addresses in the unauthenticated hackathon demo (#85).
 
 ### Added
 
