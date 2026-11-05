@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import date
+from ipaddress import ip_address
 from pathlib import Path
 from typing import Literal, Protocol
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from .. import __version__
@@ -26,6 +28,33 @@ from .config import Settings, load_settings
 
 log = logging.getLogger("paypal_invoice_steward")
 STATIC = Path(__file__).parent / "static"
+
+
+# Deliberate local-only hackathon threat boundary (not user authentication).
+# The synthetic TestClient address/Host pairing exists only in in-process tests.
+def _is_local_request(request: Request) -> bool:
+    peer = request.client.host if request.client is not None else ""
+    try:
+        host = urlsplit("http://" + request.headers.get("host", "")).hostname
+    except ValueError:
+        return False
+    if not (peer == "testclient" and host == "testserver"):
+        if host not in {"localhost", "127.0.0.1", "::1"}:
+            return False
+        try:
+            if not ip_address(peer).is_loopback:
+                return False
+        except ValueError:
+            return False
+    origin = request.headers.get("origin")
+    if request.method not in {"GET", "HEAD", "OPTIONS"} and origin:
+        try:
+            parsed = urlsplit(origin)
+            if parsed.scheme != request.url.scheme or parsed.netloc != request.headers.get("host"):
+                return False
+        except ValueError:
+            return False
+    return True
 
 
 class ChatIn(BaseModel):
@@ -91,6 +120,17 @@ def create_app(
 
     app = FastAPI(title="PayPal Invoice Steward", version=__version__)
     app.state.service, app.state.port, app.state.agent = service, port, assistant
+
+    @app.middleware("http")
+    async def _local_only(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if not _is_local_request(request):
+            return JSONResponse(
+                {"error": "This hackathon demo only accepts direct local browser requests."},
+                status_code=403,
+            )
+        return await call_next(request)
 
     @app.exception_handler(ProposalError)
     async def _proposal_error(_: Request, exc: ProposalError) -> JSONResponse:
