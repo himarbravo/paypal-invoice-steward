@@ -50,9 +50,7 @@ def test_no_tool_can_execute_anything() -> None:
     assert not any(word in name for name in names for word in forbidden)
 
 
-def test_receivables_aging_tool_is_read_only(
-    service: ProposalService, port: FakePayPal
-) -> None:
+def test_receivables_aging_tool_is_read_only(service: ProposalService, port: FakePayPal) -> None:
     toolbox = Toolbox(service, port, lambda: TODAY)
     before = len(service.list())
     content, is_error = toolbox.run("get_receivables_aging", {})
