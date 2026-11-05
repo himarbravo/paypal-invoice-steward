@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Minimize PayPal-derived tool output to opaque identifiers and financial fields before sending data to the LLM; omit free-text customer and proposal details and add adversarial tests (#95).
 - Redact upstream PayPal error text before it reaches browser responses, agent tools, proposal/audit records or agent error logs (#93).
 - Default sandbox operations to read-only; require an explicit environment opt-in before approved invoice and reminder sends, with an HTTP 403 and audit entry when blocked (#91).
 - Reject untrusted sandbox-lookalike endpoints, partial PayPal credentials and unsupported modes instead of silently falling back to demo mode (#73).

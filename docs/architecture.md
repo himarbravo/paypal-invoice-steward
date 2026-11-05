@@ -19,6 +19,10 @@ Invoice Steward reads invoices from PayPal, forecasts when they will be paid, an
 ```
 
 1. A chat message goes to the assistant (`LLMAgent` with Claude, or `OfflineAgent`).
+   Claude receives a separate minimal tool-result projection with safe invoice IDs,
+   amounts, dates and statuses; it omits untrusted customer text and proposal summaries.
+   The offline assistant and human interface retain their richer data views. Prompt
+   instructions are not a security boundary; the tool and approval controls are.
 2. The assistant can only call read tools and `propose_*` tools. Proposing validates the policy and stores a *pending* proposal with a payload hash; nothing is sent.
 3. The interface shows the proposal as a card. Confirming sends the hash the person reviewed.
 4. `ProposalService.confirm` moves the proposal to *executing* with a compare-and-swap, looks the invoice up by its reference, then creates and sends it, or sends the reminder.
