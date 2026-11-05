@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from .aging import receivables_aging
 from .forecast import forecast
 from .models import JSON
 from .ports import LLMClient, PayPalError, PayPalPort, PayPalUncertain
@@ -22,7 +23,7 @@ from .proposals import ProposalError, ProposalService
 
 Today = Callable[[], date]
 
-READ_TOOLS = ("list_invoices", "get_cash_flow_forecast", "list_proposals")
+READ_TOOLS = ("list_invoices", "get_cash_flow_forecast", "get_receivables_aging", "list_proposals")
 PROPOSE_TOOLS = ("propose_invoice", "propose_reminder")
 
 SYSTEM_PROMPT = """\
@@ -37,7 +38,7 @@ How you work:
   a proposal with status "done".
 - If a proposal is "unverified", say plainly that the outcome is unknown and that they can
   press Verify. Never call an unverified proposal failed.
-- Use figures only from tool results. When you quote the forecast, give the range (p10 to p90),
+- For aging, state that open invoice face amounts may differ from outstanding balances after partial payments. Never combine currencies.\n- Use figures only from tool results. When you quote the forecast, give the range (p10 to p90),
   not just the expected value, and name the invoices that drive the risk.
 - If a tool returns an error, explain it simply and say what the owner can do instead.
 - Reminders: only for open invoices that are overdue or due within 3 days. Keep reminder notes
@@ -65,6 +66,11 @@ TOOLS: list[dict[str, Any]] = [
             "range, "
             "per-invoice chance of payment within 30 days, and each customer's payment habit."
         ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_receivables_aging",
+        "description": "Age currently open invoice face amounts by due date and currency; not verified remaining balances for partial payments.",
         "input_schema": {"type": "object", "properties": {}},
     },
     {
@@ -185,6 +191,8 @@ class Toolbox:
         if name == "get_cash_flow_forecast":
             result = forecast(self.port.list_invoices(), today)
             return result or {"message": "There are no open invoices to forecast."}
+        if name == "get_receivables_aging":
+            return receivables_aging(self.port.list_invoices(), today)
         if name == "list_proposals":
             return {
                 "proposals": [
