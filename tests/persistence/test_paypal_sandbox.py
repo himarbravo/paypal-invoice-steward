@@ -52,6 +52,7 @@ def test_refuses_non_sandbox_url() -> None:
         "https://api-m.sandbox.paypal.com@evil.example",
         "http://api-m.sandbox.paypal.com",
         "https://api-m.sandbox.paypal.com:444",
+        "https://api-m.sandbox.paypal.com?redirect=evil.example",
         "https://api-m.paypal.com",
     ],
 )
@@ -67,7 +68,7 @@ def test_accepts_canonical_sandbox_with_trailing_slash() -> None:
 
 @pytest.mark.parametrize(
     ("client_id", "client_secret"),
-    [("", "secret"), ("id", ""), (" ", "secret")],
+    [("", "secret"), ("id", ""), (" ", "secret"), ("id", " ")],
 )
 def test_refuses_blank_credentials(client_id: str, client_secret: str) -> None:
     with pytest.raises(ValueError, match="credentials"):
