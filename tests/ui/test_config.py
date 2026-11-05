@@ -15,6 +15,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory)
         "ANTHROPIC_API_KEY",
         "STEWARD_MAX_INVOICE",
         "STEWARD_REMINDER_COOLDOWN_DAYS",
+        "STEWARD_SANDBOX_WRITES",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)  # no stray .env file
@@ -74,3 +75,40 @@ def test_manual_sandbox_configuration_requires_credentials() -> None:
 def test_manual_invalid_runtime_mode_is_rejected() -> None:
     with pytest.raises(ValueError, match="Only demo and sandbox"):
         build_port(Settings(mode="production"), date.today)
+
+
+def test_sandbox_is_read_only_even_when_credentials_exist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    settings = load_settings()
+    assert settings.mode == "sandbox"
+    assert settings.sandbox_writes_enabled is False
+    assert settings.policy.sandbox_writes_enabled is False
+
+
+def test_sandbox_writes_require_explicit_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("STEWARD_SANDBOX_WRITES", "enabled")
+    settings = load_settings()
+    assert settings.sandbox_writes_enabled
+    assert settings.policy.sandbox_writes_enabled
+
+
+@pytest.mark.parametrize("setting", ["true", "1", "yes", "ENABLED", "disable"])
+def test_ambiguous_sandbox_write_settings_fail_closed(
+    monkeypatch: pytest.MonkeyPatch, setting: str
+) -> None:
+    monkeypatch.setenv("STEWARD_SANDBOX_WRITES", setting)
+    with pytest.raises(RuntimeError, match="STEWARD_SANDBOX_WRITES"):
+        load_settings()
+
+
+def test_sandbox_write_opt_in_is_invalid_in_demo_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STEWARD_SANDBOX_WRITES", "enabled")
+    with pytest.raises(RuntimeError, match="requires sandbox mode"):
+        load_settings()
