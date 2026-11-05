@@ -246,7 +246,9 @@ def test_paypal_app_pin_rejects_another_app_before_invoice_call() -> None:
         raise AssertionError("Must reject wrong PayPal app before requesting invoices.")
 
     port = SandboxPayPal(
-        "id", "secret", transport=httpx.MockTransport(handler),
+        "id",
+        "secret",
+        transport=httpx.MockTransport(handler),
         expected_app_id="APP-DIFFERENT",
     )
     with pytest.raises(PayPalError, match="app ID"):
@@ -264,7 +266,9 @@ def test_matching_app_pin_and_scope_allow_sandbox_read() -> None:
         return httpx.Response(200, json={"items": []})
 
     port = SandboxPayPal(
-        "id", "secret", transport=httpx.MockTransport(handler),
+        "id",
+        "secret",
+        transport=httpx.MockTransport(handler),
         expected_app_id="APP-SANDBOX-TEST",
     )
     assert port.list_invoices() == []
