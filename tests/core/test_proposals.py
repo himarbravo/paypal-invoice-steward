@@ -277,7 +277,9 @@ def test_provider_error_text_never_enters_proposal_or_audit_log(
     assert expected_state in [entry["event"] for entry in record["events"]]
 
 
-@pytest.mark.parametrize("failure", [PayPalError("LEAK_TEST_SECRET", 403), PayPalUncertain("LEAK_TEST_SECRET")])
+@pytest.mark.parametrize(
+    "failure", [PayPalError("LEAK_TEST_SECRET", 403), PayPalUncertain("LEAK_TEST_SECRET")]
+)
 def test_verification_errors_hide_upstream_text(
     service: ProposalService,
     port: FakePayPal,
