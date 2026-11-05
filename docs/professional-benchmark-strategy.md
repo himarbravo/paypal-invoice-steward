@@ -466,3 +466,21 @@ Section 2 (A/B/C source hierarchy, acceptance contract and six workstream object
 **Professional evidence limitations:** APQC PCF process IDs are verified but not equivalent to published measure formulas; exact DSO/ADD formulas, detailed CICM/NACM/IOFM passages, target jurisdiction/accounting framework and partner merchant permissions remain **PROVISIONAL**. No blanket source audit PASS. No code or tests changed by this review.
 
 **Execution sequencing:** Decide single-merchant vs multi-merchant deployment first (#73); define privacy and decision rights (#74); establish complete/fresh invoice evidence (#75 and #71); reconcile external contact policy (#72); only then rely on AR ranking, reminders, KPIs or forecasts. Continue human approval and no-autonomous-enforcement constraints.
+
+
+## 17. Delivery epics — single-merchant implementation plan (2026-11-05)
+
+**Architecture decision:** one PayPal merchant in sandbox for the MVP; no multi-merchant onboarding, partner OAuth flows or tenant administration until separately scoped. Security, credential protection and source provenance still apply. The GitHub connector cannot create native milestones; **six delivery epics** are the milestone equivalents. The legacy persona epics #38–40 remain secondary benchmark references.
+
+| Primary delivery epic | Issue | Unique child requirements |
+|---|---|---|
+| Foundations | [#76](https://github.com/himarbravo/paypal-invoice-steward/issues/76) | #73 #74 #75 |
+| Invoicing | [#77](https://github.com/himarbravo/paypal-invoice-steward/issues/77) | #61 #62 #66 #71 |
+| Accounts Receivable | [#78](https://github.com/himarbravo/paypal-invoice-steward/issues/78) | #51 #52 #53 #54 #55 #56 #57 #58 |
+| Collections | [#79](https://github.com/himarbravo/paypal-invoice-steward/issues/79) | #41 #42 #43 #44 #45 #46 #47 #49 #50 #63 #64 #65 #67 #72 |
+| Agent and security | [#80](https://github.com/himarbravo/paypal-invoice-steward/issues/80) | #60 #69 #70 |
+| Evaluation | [#81](https://github.com/himarbravo/paypal-invoice-steward/issues/81) | #48 #59 #68 |
+
+**Accounting:** 3 + 4 + 8 + 14 + 3 + 3 = **35 distinct requirements**, each with one primary delivery epic. Each child issue links its delivery epic; dependencies across epics are allowed and expected. The six epics are functional ownership categories, not a claim that all security/evaluation work waits until the end. Tests and approvals are required in every vertical delivery.
+
+**Suggested execution order:** foundation contracts and security gates (#76 + #80), invoicing and trustworthy synchronization (#77 + #75), financial reconciliation (#78), supervised collections (#79), then integrated benchmark verification (#81), while running relevant tests continuously.
