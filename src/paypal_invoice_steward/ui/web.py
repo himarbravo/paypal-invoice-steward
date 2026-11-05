@@ -103,7 +103,11 @@ def create_app(
 ) -> FastAPI:
     """Wire settings, PayPal backend, store and assistant into a FastAPI app."""
     settings = settings or load_settings()
-    if settings.mode == "sandbox" and settings.anthropic_api_key and not settings.sandbox_llm_enabled:
+    if (
+        settings.mode == "sandbox"
+        and settings.anthropic_api_key
+        and not settings.sandbox_llm_enabled
+    ):
         raise RuntimeError(
             "External AI in sandbox requires STEWARD_SANDBOX_LLM=enabled. "
             "The operator chat may contain personal information."
