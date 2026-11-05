@@ -14,12 +14,18 @@ def main() -> None:
     if "--version" in sys.argv[1:]:
         print(f"paypal-invoice-steward {__version__}")
         return
+    # This prototype has no user login; public or LAN bindings are unsafe.
+    host = os.getenv("HOST", "127.0.0.1")
+    if host not in {"127.0.0.1", "::1", "localhost"}:
+        raise RuntimeError(
+            "The hackathon demo is local-only: HOST must be 127.0.0.1, ::1 or localhost."
+        )
     import uvicorn
 
     uvicorn.run(
         "paypal_invoice_steward.ui.web:create_app",
         factory=True,
-        host=os.getenv("HOST", "127.0.0.1"),
+        host=host,
         port=int(os.getenv("PORT", "8000")),
     )
 
