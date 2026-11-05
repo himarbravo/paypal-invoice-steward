@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from .models import JSON, invoice_total
-from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore
+from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore, safe_paypal_error
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CURRENCIES = {"EUR", "USD", "GBP"}
@@ -276,12 +276,13 @@ class ProposalService:
         try:
             result = self._execute(proposal)
         except PayPalError as exc:
-            self.store.transition(proposal_id, [EXECUTING], FAILED, error=str(exc))
-            self.store.log(proposal_id, "failed", str(exc))
-        except PayPalUncertain as exc:
-            message = f"{exc} Outcome unknown; verify before retrying."
+            message = safe_paypal_error(exc)
+            self.store.transition(proposal_id, [EXECUTING], FAILED, error=message)
+            self.store.log(proposal_id, "failed", message)
+        except PayPalUncertain:
+            message = "PayPal outcome unknown; verify before retrying."
             self.store.transition(proposal_id, [EXECUTING], UNVERIFIED, error=message)
-            self.store.log(proposal_id, "unverified", str(exc))
+            self.store.log(proposal_id, "unverified", message)
         except Exception as exc:  # any surprise means "we don't know"
             message = (
                 f"Unexpected error ({type(exc).__name__}). Outcome unknown; verify before retrying."
@@ -322,8 +323,8 @@ class ProposalService:
             raise Conflict("Reminders cannot be verified automatically. Check PayPal directly.")
         try:
             invoice = self.port.find_by_reference(proposal["reference"])
-        except (PayPalError, PayPalUncertain) as exc:
-            raise Conflict(f"Could not check PayPal right now: {exc}") from exc
+        except (PayPalError, PayPalUncertain):
+            raise Conflict("Could not check PayPal right now. Verify again later.") from None
         if invoice is not None and invoice.status in ("open", "paid"):
             self.store.transition(
                 proposal_id, [UNVERIFIED], DONE, result={"invoice": invoice.to_dict(self.today())}
