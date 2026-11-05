@@ -15,6 +15,7 @@ from ..persistence.paypal_sandbox import SANDBOX_URL
 class Settings:
     paypal_client_id: str | None = None
     paypal_client_secret: str | None = None
+    paypal_app_id: str | None = None
     paypal_base_url: str = SANDBOX_URL
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-5-5"
@@ -62,6 +63,7 @@ def load_settings() -> Settings:
     return Settings(
         paypal_client_id=client_id,
         paypal_client_secret=client_secret,
+        paypal_app_id=os.getenv("PAYPAL_APP_ID") or None,
         paypal_base_url=os.getenv("PAYPAL_BASE_URL", SANDBOX_URL),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY") or None,
         anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5"),

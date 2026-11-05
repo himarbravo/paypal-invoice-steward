@@ -11,6 +11,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory)
     for name in (
         "PAYPAL_CLIENT_ID",
         "PAYPAL_CLIENT_SECRET",
+        "PAYPAL_APP_ID",
         "STEWARD_MODE",
         "ANTHROPIC_API_KEY",
         "STEWARD_MAX_INVOICE",
@@ -112,3 +113,14 @@ def test_sandbox_write_opt_in_is_invalid_in_demo_mode(
     monkeypatch.setenv("STEWARD_SANDBOX_WRITES", "enabled")
     with pytest.raises(RuntimeError, match="requires sandbox mode"):
         load_settings()
+
+
+def test_optional_paypal_sandbox_app_pin_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("PAYPAL_APP_ID", "APP-SANDBOX-TEST")
+    settings = load_settings()
+    assert settings.paypal_app_id == "APP-SANDBOX-TEST"
+    assert settings.sandbox_writes_enabled is False
