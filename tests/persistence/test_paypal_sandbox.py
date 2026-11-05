@@ -6,10 +6,22 @@ import pytest
 
 from paypal_invoice_steward.core.models import JSON
 from paypal_invoice_steward.core.ports import PayPalError, PayPalPort, PayPalUncertain
-from paypal_invoice_steward.persistence.paypal_sandbox import SandboxPayPal, normalize_invoice
+from paypal_invoice_steward.persistence.paypal_sandbox import (
+    INVOICING_SCOPE,
+    SandboxPayPal,
+    normalize_invoice,
+)
 
 TODAY = date(2026, 10, 29)
 Handler = Callable[[httpx.Request], httpx.Response]
+
+OAUTH_TOKEN: JSON = {
+    "access_token": "t",
+    "token_type": "Bearer",
+    "scope": "openid https://uri.paypal.com/services/invoicing",
+    "app_id": "APP-SANDBOX-TEST",
+    "expires_in": 300,
+}
 
 RAW: JSON = {
     "id": "INV2-AAAA",
@@ -33,7 +45,7 @@ def make(handler: Handler) -> SandboxPayPal:
 def token_then(handler: Handler) -> Handler:
     def wrapper(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/v1/oauth2/token":
-            return httpx.Response(200, json={"access_token": "t", "expires_in": 300})
+            return httpx.Response(200, json=OAUTH_TOKEN)
         return handler(request)
 
     return wrapper
@@ -187,3 +199,99 @@ def test_satisfies_the_port() -> None:
 )
 def test_every_paypal_status_is_mapped(paypal_status: str, expected: str) -> None:
     assert normalize_invoice({**RAW, "status": paypal_status}).status == expected
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"scope": ""},
+        {"scope": "https://uri.paypal.com/services/invoicing-extra"},
+        {"scope": "https://uri.paypal.com/services"},
+        {"scope": None},
+        {"token_type": "Basic"},
+        {"token_type": None},
+        {"app_id": ""},
+        {"app_id": None},
+        {"access_token": ""},
+        {"access_token": "with newline\n"},
+        {"expires_in": 0},
+        {"expires_in": -5},
+        {"expires_in": "nan"},
+        {"expires_in": None},
+    ],
+)
+def test_invalid_oauth_metadata_blocks_invoicing_before_request(
+    override: JSON,
+) -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json={**OAUTH_TOKEN, **override})
+        raise AssertionError("Invoice API must not be called with invalid OAuth authority.")
+
+    with pytest.raises(PayPalError):
+        make(handler).list_invoices()
+    assert calls == ["/v1/oauth2/token"]
+
+
+def test_paypal_app_pin_rejects_another_app_before_invoice_call() -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json=OAUTH_TOKEN)
+        raise AssertionError("Must reject wrong PayPal app before requesting invoices.")
+
+    port = SandboxPayPal(
+        "id", "secret", transport=httpx.MockTransport(handler),
+        expected_app_id="APP-DIFFERENT",
+    )
+    with pytest.raises(PayPalError, match="app ID"):
+        port.list_invoices()
+    assert calls == ["/v1/oauth2/token"]
+
+
+def test_matching_app_pin_and_scope_allow_sandbox_read() -> None:
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json=OAUTH_TOKEN)
+        return httpx.Response(200, json={"items": []})
+
+    port = SandboxPayPal(
+        "id", "secret", transport=httpx.MockTransport(handler),
+        expected_app_id="APP-SANDBOX-TEST",
+    )
+    assert port.list_invoices() == []
+    assert paths == ["/v1/oauth2/token", "/v2/invoicing/invoices"]
+
+
+def test_401_on_post_does_not_automatically_replay_sandbox_send() -> None:
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json=OAUTH_TOKEN)
+        return httpx.Response(401, json={"message": "Unauthorized"})
+
+    with pytest.raises(PayPalError):
+        make(handler).send_reminder("INV2-AAAA", "Test")
+    assert paths == ["/v1/oauth2/token", "/v2/invoicing/invoices/INV2-AAAA/remind"]
+
+
+def test_missing_oauth_response_body_is_rejected_safely() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"not json")
+
+    with pytest.raises(PayPalError, match="malformed OAuth"):
+        make(handler).list_invoices()
+
+
+def test_scope_contract_in_test_fixtures_matches_provider_documentation() -> None:
+    assert INVOICING_SCOPE in OAUTH_TOKEN["scope"].split()
