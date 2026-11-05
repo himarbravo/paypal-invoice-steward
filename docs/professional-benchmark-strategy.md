@@ -1,6 +1,6 @@
 # Professional Scope, Strategy & Benchmark — PayPal Invoice Steward
 
-**Version:** 2.1 — 2026-11-05. **Status:** requirements baseline, not certification, production readiness or legal advice.
+**Version:** 2.2 — 2026-11-05. **Status:** requirements baseline, not certification, production readiness or legal advice.
 
 ## 1. Strategic thesis and users
 Build a **human-supervised AI Accounts Receivable / Credit Control copilot** for freelancers and SMBs using PayPal Invoicing. Outcomes: fewer forgotten invoices, trustworthy cash visibility, efficient and respectful collections, better account records and evidence-based owner decisions. Personas: business owner (primary), billing clerk, credit controller, bookkeeper (secondary). Focus: **B2B invoice-to-cash subset**, not all enterprise order-to-cash operations.
@@ -453,3 +453,16 @@ Section 2 (A/B/C source hierarchy, acceptance contract and six workstream object
 | PayPal merchant-level auto-reminder changes | **Human-authorized only** | #72; do not imply internal dispute holds automatically stop external sends |
 
 **Audit limitation:** This was a focused review of public APQC/PayPal/NACM primary materials plus existing issues, not a comprehensive legal or proprietary training-content audit. IOFM and CICM fine-grained sections, metric formulas, and applicability of IFRS/individual jurisdictions remain provisional. Any future gap should be checked against existing issue scope before creating a new issue.
+
+
+## 16. Skeptical second-pass source audit — current status (2026-11-05)
+
+**Authoritative review:** [Second-pass source and backlog gap audit](professional-benchmark-second-pass-gap-audit.md). This supersedes any earlier statement that source selection or source-to-capability verification is fully complete. The original 30 professional capabilities remain #41–70, supplemented by five cross-cutting integration/compliance requirements **#71–75**. This is **35 tracked requirements**, not 35 certified professional competencies.
+
+**New P0 requirements:** [#73 merchant authorization and tenancy](https://github.com/himarbravo/paypal-invoice-steward/issues/73), [#74 customer-data lifecycle and automated decision boundaries](https://github.com/himarbravo/paypal-invoice-steward/issues/74), [#75 invoice completeness/freshness](https://github.com/himarbravo/paypal-invoice-steward/issues/75). Existing [#71 webhook verification](https://github.com/himarbravo/paypal-invoice-steward/issues/71) and [#72 merchant reminder conflicts](https://github.com/himarbravo/paypal-invoice-steward/issues/72) have additional source-specific caveats. #53, #55 and #69 also received corrective evidence requirements.
+
+**Critical evidence discrepancy:** PayPal's invoicing-specific webhook example and REST webhook signature documentation do not use equivalent illustrative algorithms/encodings. The provider's REST verification API / documented raw-payload signature contract must be the verification target, **not an unreviewed sample**. No sandbox signature test has been performed.
+
+**Professional evidence limitations:** APQC PCF process IDs are verified but not equivalent to published measure formulas; exact DSO/ADD formulas, detailed CICM/NACM/IOFM passages, target jurisdiction/accounting framework and partner merchant permissions remain **PROVISIONAL**. No blanket source audit PASS. No code or tests changed by this review.
+
+**Execution sequencing:** Decide single-merchant vs multi-merchant deployment first (#73); define privacy and decision rights (#74); establish complete/fresh invoice evidence (#75 and #71); reconcile external contact policy (#72); only then rely on AR ranking, reminders, KPIs or forecasts. Continue human approval and no-autonomous-enforcement constraints.
