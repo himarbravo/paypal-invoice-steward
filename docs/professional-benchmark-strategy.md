@@ -297,3 +297,47 @@ The Claude tool-calling agent exposes `list_invoices`, `get_cash_flow_forecast`,
 
 ## 9. Governance and scope change
 New features require source reference, user problem, minimum observable behavior, permission classification, risk assessment, fixture and acceptance criterion. Reassess every quarter or after a material PayPal API/policy change. Do not conflate O*NET observed activities (including potentially coercive collection tasks) with actions suitable for autonomous software.
+
+## 10. Gap analysis against professional practice (2026-11-05)
+
+**Important taxonomy correction:** CICM is a professional body and competence framework; APQC is a process taxonomy and benchmark provider; O*NET is an occupational task database. The *roles* being benchmarked are Credit Controller, Accounts Receivable Specialist, and Billing/Collections Operator. Source-to-feature mappings are our engineering interpretations, not formal certification requirements. "State of the art" also encompasses current workflow automation and evidence-based agent evaluations; vendor capabilities should not be confused with professional standards.
+
+| Professional work | Evidence | Verified baseline | Gap / required feature | Backlog |
+|---|---|---|---|---|
+| Credit assessment and exposure | CICM-PS | Customer delay history only | Profile, credit terms, exposure, missing-data flags | C01 |
+| Delinquency prioritization | CICM-L2 | Forecast invoice risk | Action queue factoring amount, recency, disputes and contact history | C02, C03 |
+| Ethical collection communication | CICM-L2 | Generic reminders and 3-day cooldown | Channel preference, contact policy, tone and dispute hold | C03, C04, C06, C09 |
+| Promise-to-pay and negotiated arrangements | CICM-L2; ONET-C | None | Commitments timeline and advisory only, human negotiation | C05, C07, O03 |
+| Dispute/complaint resolution | CICM-L2; ONET-C | None | Case ownership, status, evidence, mandatory hold | C06, O04 |
+| Invoice accuracy and lifecycle | ONET-B; PAYPAL | Basic proposal validation, PayPal sandbox adapter | Duplicate/error detection, correction review, live sandbox verification | O01, O02 |
+| Customer inquiries and records | ONET-C; ONET-B | Invoice retrieval | Customer timeline, verifiable communications and case notes | O03, O04 |
+| Payment posting and allocation | APQC-O2C; ONET-B | Invoice status normalization | Partial payment and cash application with unmatched queue | A05, A07, O06 |
+| Aging and performance | APQC-O2C | **New:** read-only aging of open invoice face amounts | Verified residual balance, DSO, ADD, collection effectiveness | A02, A03, A08 |
+| Forecasting and planning | APQC-FLOW | 8-week Monte Carlo heuristic | Backtest/calibration, scenarios and transparent assumptions | A04, A09 |
+| Controls and permissions | NIST; OWASP; PAYPAL | Approval hash/CAS and sandbox guard | Multi-tenant isolation, adversarial injection, role authorization | A10, O09, O10 |
+| Professional competence evaluation | CICM-PS; ONET-B; APQC-O2C | Unit tests; no validated professional suite | Realistic multi-step scenarios, failure analysis and evidence tiers | C08, A09, O08 |
+
+### Critical end-to-end benchmark: three-invoice customer
+**Fixture:** same customer has an invoice 45 days overdue, a second partially paid yesterday, and a third disputed; a promise to pay the first next Friday is documented.
+
+**Required:** (1) show the overdue amount with source evidence; (2) avoid treating the partially paid invoice face amount as outstanding; (3) block ordinary reminders on the disputed invoice; (4) respect promise-to-pay date; (5) update forecast with explicit assumptions; (6) prepare, not send, an owner-approved next action; (7) preserve the complete decision and audit trail.
+
+**Baseline result:** current application cannot complete this workflow because payment allocation, dispute holds, and promises are not modeled. The new aging tool explicitly flags its inability to verify residual balances. It must **not** be scored as full cash application or accurate outstanding-AR reporting.
+
+### Sequencing and shared domain architecture
+1. **P0 foundation:** canonical financial events, payment allocations, outstanding-balance model, dispute holds, permissions and case provenance. Without these, advanced recommendations are misleading.
+2. **P0 daily operations:** verified aging, exception queue, safe collection priority and approval-only outreach.
+3. **P1 case management:** customer timeline, contact history, promises, dispute resolution and next-action scheduling.
+4. **P1 management:** DSO/ADD definitions, reproducible AR reports, forecast calibration and scenario planning.
+5. **P2 advanced:** repayment-plan advisory, controlled integrations and measured collection effectiveness.
+
+Build shared services once, and let different professional role evaluations exercise them. Do not create duplicate implementations simply because multiple sources describe the same workflow.
+
+### Implemented in this iteration
+- `core/aging.py`: deterministic, read-only aging by due-date buckets and currency, with explicit partial-payment and historical-snapshot limitations.
+- `get_receivables_aging`: agent tool for read-only aging.
+- `tests/test_aging.py`: boundary, excluded-status, currency-isolation and non-finite-value tests.
+- **Verification status:** code committed; tests not independently executed through the GitHub connector. This is **partial A02**, not completed A02.
+
+### Source verification protocol
+Before changing an issue from proposed to complete, reviewers must (a) verify the referenced professional document's exact task/section and revision; (b) record the resulting engineering requirement; (c) verify PayPal API support and permissions; (d) run automated tests and sandbox scenarios; and (e) attach evidence to the issue. If a URL is inaccessible or a source does not actually support the claimed requirement, mark it *unverified* and replace it rather than inventing normative authority.
