@@ -1,101 +1,299 @@
-# Strategy, Scope & Professional Benchmark — PayPal Invoice Steward
+# Professional Scope, Strategy & Benchmark — PayPal Invoice Steward
 
-Status: proposed benchmark v1 (2026-11-05). This is an engineering evaluation framework, **not** a CICM/APQC/O*NET certification or legal compliance opinion.
+**Version:** 2.0 — 2026-11-05. **Status:** requirements baseline, not certification, production readiness or legal advice.
 
-## Mission and users
-Build an AI-assisted **accounts receivable / credit control copilot** for freelancers and small businesses using PayPal Invoicing. Optimize for cash visibility, timely and respectful collection, accurate records and safe human-approved action. Primary persona: owner/operator managing 5–500 invoices. Secondary persona: bookkeeper or credit controller.
+## 1. Strategic thesis and users
+Build a **human-supervised AI Accounts Receivable / Credit Control copilot** for freelancers and SMBs using PayPal Invoicing. Outcomes: fewer forgotten invoices, trustworthy cash visibility, efficient and respectful collections, better account records and evidence-based owner decisions. Personas: business owner (primary), billing clerk, credit controller, bookkeeper (secondary). Focus: **B2B invoice-to-cash subset**, not all enterprise order-to-cash operations.
 
-## Sources and roles
-- **CICM Professional Standards:** credit management competencies, ethical customer treatment, risk judgment and professional conduct. https://www.cicm.com/static/2af04f90-d084-40bc-9aa86f51a63fef8b/CICM-Professional-Standards.pdf
-- **CICM credit and collections syllabus:** practical collections workflows and communication. https://www.cicm.com/
-- **APQC Process Classification Framework:** invoice-to-cash process coverage, control points and operational metrics. https://www.apqc.org/process-frameworks
-- **O*NET 43-3011.00 Bill and Account Collectors:** occupation tasks for collections. https://www.onetonline.org/link/details/43-3011.00
-- **O*NET 43-3021.00 Billing and Posting Clerks:** billing records, corrections and posting. https://www.onetonline.org/link/details/43-3021.00
-- **OWASP Top 10 for LLM Applications:** prompt injection, excessive agency, sensitive-information disclosure and related threats. https://genai.owasp.org/llm-top-10/
-- **NIST AI RMF 1.0:** governance, measurement and management of AI risks. https://www.nist.gov/itl/ai-risk-management-framework
-- **PayPal Invoicing API:** confirm operation and sandbox constraints against official reference before implementation. https://developer.paypal.com/docs/api/invoicing/v2/
+## 2. Sources of truth, authority and boundaries
+| ID | Primary authority | What it actually supports | What it does NOT prove |
+|---|---|---|---|
+| CICM-PS | [Source](https://www.cicm.com/membership/professional-standards.html) | Professional credit/collections competencies, communication, disputes and ethical treatment | A binding legal requirement or certification for this software |
+| CICM-L2 | [Source](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Professional credit/collections competencies, communication, disputes and ethical treatment | A binding legal requirement or certification for this software |
+| APQC-O2C | [Source](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | O2C process, cash application, exceptions and performance metrics | A binding legal requirement or certification for this software |
+| APQC-FLOW | [Source](https://www.apqc.org/What-Are-Procure-to-Pay-and-Order-to-Cash-Processes) | O2C process, cash application, exceptions and performance metrics | A binding legal requirement or certification for this software |
+| ONET-C | [Source](https://www.onetonline.org/link/summary/43-3011.00) | Observed occupational tasks for collectors or billing clerks | A binding legal requirement or certification for this software |
+| ONET-B | [Source](https://www.onetonline.org/link/summary/43-3021.00) | Observed occupational tasks for collectors or billing clerks | A binding legal requirement or certification for this software |
+| PAYPAL | [Source](https://developer.paypal.com/api/invoicing/v2/) | Available invoice API endpoints and technical constraints | Production permissions or verified sandbox success |
+| OWASP | [Source](https://genai.owasp.org/llmrisk2023-24/llm08-excessive-agency/) | LLM agent excessive-agency threat model | A binding legal requirement or certification for this software |
+| NIST | [Source](https://airc.nist.gov/airmf-resources/airmf/5-sec-core/) | AI risk governance and evaluation | A binding legal requirement or certification for this software |
 
-Sources are complementary, not interchangeable. In particular IFRS 9 expected-credit-loss accounting is **out of scope** for v1: the existing statistical forecast is not an audited ECL model.
+**Evidence rules:** Source-to-feature mapping is a *product interpretation*, not an exact normative requirement. Each capability below has a source ID, explicit minimum behavior, test and priority. Professional occupational descriptions are not a mandate to automate every task. PayPal API availability does not mean our adapter implements the endpoint. Any jurisdiction-specific debt collection/privacy/accounting obligations require separate legal review.
 
-## Current baseline (verified from repository source, not runtime)
-- Agent uses Claude tool calling (or a rules-only offline fallback) with five tools: list_invoices, get_cash_flow_forecast, list_proposals, propose_invoice, propose_reminder.
-- Core forecast: customer payment-delay estimates and 2,000 Monte Carlo draws, eight-week p10/p90 projections.
-- ProposalService: server-side validation, content hash, explicit human confirmation, CAS transition, audit events and uncertain-outcome reconciliation.
-- PayPal adapter: sandbox-only Invoicing v2. Real sandbox end-to-end operation and external email delivery **not independently verified**.
-- Gaps: structured collections strategy, customer context/disputes, aging/DSO reporting, payment reconciliation, scenario simulation, comprehensive agent evaluation.
+## 3. Existing verified repository baseline
+The Claude tool-calling agent exposes `list_invoices`, `get_cash_flow_forecast`, `list_proposals`, `propose_invoice`, `propose_reminder`; fallback is rules-based. Forecast uses payment-delay distributions and Monte Carlo p10/p90 estimates. ProposalService performs validation, human approval, payload hash, CAS and uncertain-outcome handling. PayPal client is sandbox-only. **Not independently verified:** real PayPal sandbox lifecycle, email delivery, forecasting calibration on real businesses. **Data caveat:** paid dates may be imputed from due dates if PayPal transaction date missing; must mark such observations as unverified for calibration.
 
-## Scope and boundaries
-### In scope (v1 benchmark)
-1. Read invoices and distinguish paid, open, overdue, draft, cancelled and unknown.
-2. Explain cash forecast and risk **as estimates** with data provenance and uncertainty.
-3. Produce a prioritized, evidence-backed weekly collections plan.
-4. Prepare polite invoice/reminder proposals, always with explicit approval.
-5. Show invoice aging, collections KPIs and what-if cash scenarios.
-6. Maintain minimal case notes, promises-to-pay and dispute holds where a secure data model exists.
-7. Audit actions, failures, approvals and reconciliation outcomes.
-8. Evaluate against deterministic role scenarios and adversarial cases.
+## 4. Functional coverage and backlog
+**Priority:** P0 = core safety/demo/professional minimum; P1 = full professional MVP; P2 = advanced capability. **Category:** requirements, implementation, tests, security. Every row is a discrete deliverable; none is a blanket instruction to “implement the profession”.
 
-### Out of scope (v1)
-- Autonomous invoice/reminder sending; movement of funds; refunds; debt sales; collections enforcement; credit scoring of consumers; legal advice; automatic write-offs or ledger posting.
-- Regulatory certification or assertion of compliance across jurisdictions.
-- Unverified CRM/email integrations or production PayPal access.
-- Autonomous negotiation or binding payment-plan changes.
+| ID | Role | Feature / work package | Category | Priority | Source | Minimum acceptance |
+|---|---|---|---|---|---|---|
+| C01 | CICM | Customer credit profile and exposure | requirements | P1 | [CICM-PS](https://www.cicm.com/membership/professional-standards.html) | A documented schema and examples for new/existing customer; unknowns explicitly flagged. |
+| C02 | CICM | Delinquency segmentation and prioritization | implementation | P0 | [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Deterministic ranking fixtures and explanation per account. |
+| C03 | CICM | Collections contact policy and cadence | requirements | P0 | [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Policy table and decision cases for due, late, disputed, recent-contact accounts. |
+| C04 | CICM | Personalized respectful reminder drafting | implementation | P0 | [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Sample outputs and tests for tone, amounts, identity and approval. |
+| C05 | CICM | Promise-to-pay tracking and follow-up | implementation | P1 | [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Timeline and reminder suggestion with timestamped provenance. |
+| C06 | CICM | Disputes, complaints and collection holds | implementation | P0 | [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Held invoice cannot generate outbound reminder proposal. |
+| C07 | CICM | Repayment-plan advisory and escalation | implementation | P2 | [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Three feasible scenarios with assumptions and human-only commitment. |
+| C08 | CICM | Collection decision audit and professional evaluation | tests | P0 | [CICM-PS](https://www.cicm.com/membership/professional-standards.html) | At least 10 versioned cases with explicit rubric and failure report. |
+| C09 | CICM | Customer-treatment and harassment firewall | security | P0 | [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Adversarial tests prove blocked sends and escalation. |
+| C10 | CICM | Credit-policy exceptions and approvals | security | P1 | [CICM-PS](https://www.cicm.com/membership/professional-standards.html) | Every exception requires named human decision and immutable audit. |
+| A01 | APQC | Order-to-cash process state map | requirements | P0 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | State transition table, source-of-truth ownership and excluded upstream stages. |
+| A02 | APQC | Invoice aging and overdue buckets | implementation | P0 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | Golden edge-date tests and documented aging basis. |
+| A03 | APQC | DSO and collections KPI definitions | requirements | P1 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | Formula sheet, limitations, no misleading DSO when sales history missing. |
+| A04 | APQC | Cash forecast scenario engine | implementation | P1 | [APQC-FLOW](https://www.apqc.org/What-Are-Procure-to-Pay-and-Order-to-Cash-Processes) | Compare baseline/scenario p10-p90 with transparent assumptions. |
+| A05 | APQC | Cash application and partial-payment matching | implementation | P1 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | No duplicate allocation; no invented settled balance. |
+| A06 | APQC | Deductions, adjustments and credit-note review | requirements | P2 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | Capability matrix with approval-only and unsupported actions flagged. |
+| A07 | APQC | Exception queue and root-cause taxonomy | implementation | P1 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | Exception list with owner, status, evidence and next action. |
+| A08 | APQC | Weekly AR report and export | implementation | P1 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | Reproducible report for fixed fixtures; separate currencies. |
+| A09 | APQC | Financial reconciliation and KPI property tests | tests | P0 | [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | Golden fixtures and invariants pass without external network. |
+| A10 | APQC | Process-control firewall and idempotency | security | P0 | [PAYPAL](https://developer.paypal.com/api/invoicing/v2/) | Lost-response, race, stale proposal and retry tests. |
+| O01 | ONET | Billing data verification and error detection | implementation | P0 | [ONET-B](https://www.onetonline.org/link/summary/43-3021.00) | Invalid invoices yield actionable errors; no unauthorized correction. |
+| O02 | ONET | Invoice draft, preview and lifecycle | implementation | P0 | [ONET-B](https://www.onetonline.org/link/summary/43-3021.00) | Draft-to-send sandbox demo with exact payload approval. |
+| O03 | ONET | Customer account history and contact timeline | implementation | P1 | [ONET-C](https://www.onetonline.org/link/summary/43-3011.00) | Timeline distinguishes actual contact from proposed draft. |
+| O04 | ONET | Customer inquiries and account explanation | implementation | P1 | [ONET-C](https://www.onetonline.org/link/summary/43-3011.00) | Grounded answers with source identifiers and uncertainty. |
+| O05 | ONET | Follow-up task scheduling and queue | implementation | P1 | [ONET-C](https://www.onetonline.org/link/summary/43-3011.00) | No scheduled outbound sends; overdue queue reproducible. |
+| O06 | ONET | Payment posting and account record correction | requirements | P1 | [ONET-B](https://www.onetonline.org/link/summary/43-3021.00) | Reconciliation policy, approval matrix and unsupported-action inventory. |
+| O07 | ONET | Repayment correspondence and escalation packets | implementation | P2 | [ONET-C](https://www.onetonline.org/link/summary/43-3011.00) | Evidence packet includes audit trail and human-only escalation. |
+| O08 | ONET | Billing and collections end-to-end task benchmark | tests | P0 | [ONET-B](https://www.onetonline.org/link/summary/43-3021.00) | At least 10 task-completion fixtures and graded outcomes. |
+| O09 | ONET | PII, multi-tenant and untrusted-text firewall | security | P0 | [OWASP](https://genai.owasp.org/llmrisk2023-24/llm08-excessive-agency/) | Red-team tests for cross-customer access and malicious invoice notes. |
+| O10 | ONET | Approval, role permissions and communication audit | security | P0 | [NIST](https://airc.nist.gov/airmf-resources/airmf/5-sec-core/) | No LLM-only permission changes or unapproved outbound messages. |
 
-## Professional capability matrix
-| ID | Source | Minimum observable behavior | Candidate tools | Evidence |
-|---|---|---|---|---|
-| C1 | CICM | Identify and prioritize overdue balances using history, amount and uncertainty | analyze_collection_risk | ranked reasons + tests |
-| C2 | CICM | Recommend proportionate, respectful collection steps | recommend_collection_strategy | approved plan, complaint/hold checks |
-| C3 | CICM | Escalate disputed or sensitive accounts to human | get_customer_context | safe abstention cases |
-| A1 | APQC | Track aging and receivables process stages | get_receivables_aging | aging fixture + documented definitions |
-| A2 | APQC | Report DSO and collection effectiveness with stated assumptions | generate_receivables_report | formula golden tests |
-| A3 | APQC | Simulate late-payment impacts | simulate_cash_flow_scenario | deterministic scenario fixtures |
-| O1 | O*NET | Validate invoice data and prepare issuance | propose_invoice | validation + approval tests |
-| O2 | O*NET | Record customer communications and promises | record_customer_note | provenance + audit |
-| O3 | O*NET | Propose follow-up and manage exceptions | propose_follow_up | workflow tests |
-| S1 | OWASP/NIST | Prevent unauthorized actions, leakage and injection | policy enforcement | adversarial regression suite |
+## 5. Full requirements and testable outcomes
+### CICM
+#### C01 — Customer credit profile and exposure (P1; requirements)
+**Source:** [CICM-PS](https://www.cicm.com/membership/professional-standards.html). **Scope:** Define account exposure, payment history, credit terms, concentration and missing-data handling; never present a credit score as externally validated.
 
-## Minimum acceptance gates (MVP)
-- **Correctness:** 100% of critical financial invariants pass automated tests; zero fabricated payment status or action-completion claims in golden evaluation scenarios.
-- **Agency:** every externally visible write requires explicit human approval of exact payload; no model-accessible send tool.
-- **Safety:** unknown/uncertain outcomes are not reported as failure; no blind retry; no contact of disputed/held accounts.
-- **Usefulness:** end-to-end demo: list overdue → analyze risk → recommend ranked actions → prepare proposal → human approve → audit result.
-- **Evidence:** each recommendation cites invoice/customer inputs, assumptions and confidence limitations; no unjustified precision.
-- **Evaluation:** minimum 20 realistic workflow cases plus 10 adversarial cases, with reproducible fixtures and pass/fail report.
-- **Operational:** tests, lint, type checks and reproducible offline demo pass; live sandbox smoke test is separately documented.
+**Acceptance:** A documented schema and examples for new/existing customer; unknowns explicitly flagged.
 
-These are **project acceptance targets**, not thresholds mandated by the cited professional organizations.
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
 
-## Scorecard (0–100)
-- Professional task coverage: 25 points (CICM/APQC/O*NET traceability and real task completion)
-- Financial correctness and calibration: 20 points (reproducibility, numeric grounding, forecast error/coverage where outcomes exist)
-- Human oversight and security: 25 points (approval, least privilege, injection/privacy, safe failure)
-- User value and experience: 15 points (time saved, clarity, actionable plans, accessible explanations)
-- Engineering evidence: 15 points (automated tests, sandbox smoke, auditability, docs)
+#### C02 — Delinquency segmentation and prioritization (P0; implementation)
+**Source:** [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf). **Scope:** Rank overdue accounts by age, balance, probability, dispute hold and past contact; reuse forecast output with traceable reason codes.
 
-Scoring rubric per criterion: 0 absent; 1 mocked only; 2 working offline with tests; 3 verified in PayPal sandbox; 4 validated with representative users or real-world outcomes. Normalize to weights; report **evidence tier separately** so a high offline score is not confused with production validation.
+**Acceptance:** Deterministic ranking fixtures and explanation per account.
 
-## Delivery strategy
-**Phase 0 — Hackathon evidence:** preserve current safety architecture; verify real sandbox invoice lifecycle; record <3-minute demonstration; avoid new integrations that threaten stability.
-**Phase 1 — Professional MVP:** risk explanations, collection recommendations, aging and golden workflow evaluations.
-**Phase 2 — Operational depth:** customer notes, dispute holds, promises-to-pay, cash scenario simulations and reporting.
-**Phase 3 — Controlled integrations:** transaction reconciliation, CRM/email/calendar connectors, permissions and independent security review.
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
 
-## Workstreams / issue taxonomy
-Three professional workstreams: CICM, APQC, O*NET. Each has four categories: `requirements`, `implementation`, `tests`, `security`. Cross-cutting security is mandatory, not a post-release enhancement. Proposed milestone names:
-- `CICM — Credit Control Competencies`
-- `APQC — Invoice-to-Cash Process`
-- `O*NET — Billing & Collections Workflows`
+#### C03 — Collections contact policy and cadence (P0; requirements)
+**Source:** [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf). **Scope:** Specify reminder timing, cooldown, customer preferences, contact limits and escalation triggers; distinguish recommended policy from law.
 
-## Benchmark execution
-1. Snapshot commit and fixture dataset; log offline vs Claude vs PayPal sandbox modes.
-2. Run scenario suite, record tool calls, proposals, approval gates, audit events and final outcomes.
-3. Score each task with source-linked requirements and evidence tiers; measure false-positive sends, numeric errors, unsafe advice, duplicated actions and missed escalations.
-4. Publish a machine-readable scorecard and failure examples; never present simulated collection improvements as realized business impact.
-5. Re-run after every agent/tool/policy change in CI.
+**Acceptance:** Policy table and decision cases for due, late, disputed, recent-contact accounts.
 
-## Known limitations and decisions to revisit
-- Existing forecast has heuristic default rates; it is not calibrated to an external population.
-- Paid invoice dates may be approximated in the PayPal adapter when transaction dates are absent; do not treat such data as verified historical truth.
-- Multiple currencies must never be summed without an explicit FX policy.
-- Any jurisdiction-specific debt collection, data protection, accounting or consumer protection obligations require qualified review before production rollout.
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### C04 — Personalized respectful reminder drafting (P0; implementation)
+**Source:** [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf). **Scope:** Draft contextual, factual, non-coercive notices in user's language; require explicit approval and avoid claims of prior contact without evidence.
+
+**Acceptance:** Sample outputs and tests for tone, amounts, identity and approval.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### C05 — Promise-to-pay tracking and follow-up (P1; implementation)
+**Source:** [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf). **Scope:** Store promised date/amount/source, flag broken promises, suggest next step without asserting binding agreement.
+
+**Acceptance:** Timeline and reminder suggestion with timestamped provenance.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### C06 — Disputes, complaints and collection holds (P0; implementation)
+**Source:** [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf). **Scope:** Open/close a dispute case, reason code, hold reminders while under review, escalate to owner; never adjudicate automatically.
+
+**Acceptance:** Held invoice cannot generate outbound reminder proposal.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### C07 — Repayment-plan advisory and escalation (P2; implementation)
+**Source:** [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf). **Scope:** Calculate installment options, affordability limitations and impact on liquidity; never negotiate or commit without approval.
+
+**Acceptance:** Three feasible scenarios with assumptions and human-only commitment.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### C08 — Collection decision audit and professional evaluation (P0; tests)
+**Source:** [CICM-PS](https://www.cicm.com/membership/professional-standards.html). **Scope:** Benchmark new customer, overdue, hardship, disputed, promise-to-pay and non-response; assert ethical conduct and factual grounding.
+
+**Acceptance:** At least 10 versioned cases with explicit rubric and failure report.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### C09 — Customer-treatment and harassment firewall (P0; security)
+**Source:** [CICM-L2](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf). **Scope:** Block threats, excessive contacts, third-party disclosure, legal enforcement advice, vulnerable customer coercion and dispute-bypass.
+
+**Acceptance:** Adversarial tests prove blocked sends and escalation.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### C10 — Credit-policy exceptions and approvals (P1; security)
+**Source:** [CICM-PS](https://www.cicm.com/membership/professional-standards.html). **Scope:** Separate recommendations from authorization for term changes, write-offs, contact overrides and credit limits.
+
+**Acceptance:** Every exception requires named human decision and immutable audit.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+### APQC
+#### A01 — Order-to-cash process state map (P0; requirements)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Define invoice-to-cash subset: invoice validation, issuance, AR, collection, payment receipt, allocation, exceptions, adjustments and close.
+
+**Acceptance:** State transition table, source-of-truth ownership and excluded upstream stages.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A02 — Invoice aging and overdue buckets (P0; implementation)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Implement as-of aging 0, 1-30, 31-60, 61-90, 90+ with paid/cancelled/unknown handling and per-currency totals.
+
+**Acceptance:** Golden edge-date tests and documented aging basis.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A03 — DSO and collections KPI definitions (P1; requirements)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Define DSO, average days delinquent, overdue share, invoice error rate, recovery effectiveness and when denominator unavailable.
+
+**Acceptance:** Formula sheet, limitations, no misleading DSO when sales history missing.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A04 — Cash forecast scenario engine (P1; implementation)
+**Source:** [APQC-FLOW](https://www.apqc.org/What-Are-Procure-to-Pay-and-Order-to-Cash-Processes). **Scope:** Simulate customer late payment, partial payment, no payment and expected payment plan using reproducible seeded forecast.
+
+**Acceptance:** Compare baseline/scenario p10-p90 with transparent assumptions.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A05 — Cash application and partial-payment matching (P1; implementation)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Parse invoice payment records, match transactions and handle partial/external payments; ambiguous matches stay unverified.
+
+**Acceptance:** No duplicate allocation; no invented settled balance.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A06 — Deductions, adjustments and credit-note review (P2; requirements)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Specify credit memo, correction, cancellation, refund and deduction workflows, and PayPal API feasibility.
+
+**Acceptance:** Capability matrix with approval-only and unsupported actions flagged.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A07 — Exception queue and root-cause taxonomy (P1; implementation)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Track unmatched payments, missing customer data, wrong amounts, invoice disputes, stale states and uncertain API results.
+
+**Acceptance:** Exception list with owner, status, evidence and next action.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A08 — Weekly AR report and export (P1; implementation)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Report aging, collections, forecast ranges, top risks, changes since prior period, KPI denominators and evidence.
+
+**Acceptance:** Reproducible report for fixed fixtures; separate currencies.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A09 — Financial reconciliation and KPI property tests (P0; tests)
+**Source:** [APQC-O2C](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved). **Scope:** Test status/date boundaries, multi-currency, partial refunds, payment duplication, DSO denominator and Monte Carlo determinism.
+
+**Acceptance:** Golden fixtures and invariants pass without external network.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### A10 — Process-control firewall and idempotency (P0; security)
+**Source:** [PAYPAL](https://developer.paypal.com/api/invoicing/v2/). **Scope:** CAS and content-hash approval for writes, uncertain outcome handling, replay prevention, no automatic adjustments or write-offs.
+
+**Acceptance:** Lost-response, race, stale proposal and retry tests.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+### ONET
+#### O01 — Billing data verification and error detection (P0; implementation)
+**Source:** [ONET-B](https://www.onetonline.org/link/summary/43-3021.00). **Scope:** Validate customer details, invoice item math, due dates, currency, duplicate references and missing mandatory fields.
+
+**Acceptance:** Invalid invoices yield actionable errors; no unauthorized correction.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O02 — Invoice draft, preview and lifecycle (P0; implementation)
+**Source:** [ONET-B](https://www.onetonline.org/link/summary/43-3021.00). **Scope:** Create, review, send via human-approved proposal, track state changes and show source timestamps.
+
+**Acceptance:** Draft-to-send sandbox demo with exact payload approval.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O03 — Customer account history and contact timeline (P1; implementation)
+**Source:** [ONET-C](https://www.onetonline.org/link/summary/43-3011.00). **Scope:** Store notes, contacts, invoice references, payment status, provenance, actor and timestamp.
+
+**Acceptance:** Timeline distinguishes actual contact from proposed draft.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O04 — Customer inquiries and account explanation (P1; implementation)
+**Source:** [ONET-C](https://www.onetonline.org/link/summary/43-3011.00). **Scope:** Answer invoice balance, due date, items, payment options and dispute status using verified records; escalate unsupported questions.
+
+**Acceptance:** Grounded answers with source identifiers and uncertainty.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O05 — Follow-up task scheduling and queue (P1; implementation)
+**Source:** [ONET-C](https://www.onetonline.org/link/summary/43-3011.00). **Scope:** Create suggested follow-up tasks for overdue invoices and promises-to-pay, with owner, due date and hold state.
+
+**Acceptance:** No scheduled outbound sends; overdue queue reproducible.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O06 — Payment posting and account record correction (P1; requirements)
+**Source:** [ONET-B](https://www.onetonline.org/link/summary/43-3021.00). **Scope:** Define how payment receipts, manual/external payments and corrections should be verified before recording; identify supported API endpoints.
+
+**Acceptance:** Reconciliation policy, approval matrix and unsupported-action inventory.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O07 — Repayment correspondence and escalation packets (P2; implementation)
+**Source:** [ONET-C](https://www.onetonline.org/link/summary/43-3011.00). **Scope:** Prepare factual account summary and correspondence for owner review; no debtor tracing, threats or automatic legal referral.
+
+**Acceptance:** Evidence packet includes audit trail and human-only escalation.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O08 — Billing and collections end-to-end task benchmark (P0; tests)
+**Source:** [ONET-B](https://www.onetonline.org/link/summary/43-3021.00). **Scope:** Scenario tests for erroneous invoice, wrong recipient, partial payment, customer complaint, correction, duplicate, missing data and multilingual query.
+
+**Acceptance:** At least 10 task-completion fixtures and graded outcomes.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O09 — PII, multi-tenant and untrusted-text firewall (P0; security)
+**Source:** [OWASP](https://genai.owasp.org/llmrisk2023-24/llm08-excessive-agency/). **Scope:** Treat invoice descriptions/notes as untrusted, minimize PII, enforce access isolation and block exfiltration or instruction injection.
+
+**Acceptance:** Red-team tests for cross-customer access and malicious invoice notes.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+#### O10 — Approval, role permissions and communication audit (P0; security)
+**Source:** [NIST](https://airc.nist.gov/airmf-resources/airmf/5-sec-core/). **Scope:** Define viewer/operator/approver capabilities; log tool usage, user consent, proposed/sent distinctions and overrides.
+
+**Acceptance:** No LLM-only permission changes or unapproved outbound messages.
+
+**Evaluation:** verify positive case, negative/ambiguous case, no fabricated state, human authorization for externally visible changes, audit evidence and data provenance.
+
+
+## 6. Process boundaries and decision rights
+- **Read/compute:** agent may query invoices, calculate aging, forecasts, ranking and draft suggestions.
+- **Propose:** agent may create a typed proposal; proposal is NOT a sent message or settled transaction.
+- **Approve:** named authenticated human approves exact canonical payload and recipient; backend revalidates fresh invoice status.
+- **Execute:** deterministic server-only adapter performs explicitly supported sandbox operation, with idempotency and audit trail.
+- **Escalate:** disputes, hardship, credit-term changes, refunds, write-offs, legal threats, ambiguous payment matches and unknown API outcomes remain human-only.
+- **Out of scope:** autonomous debt enforcement, consumer creditworthiness scoring, customer tracing, unapproved payment-plan negotiation, production-money operations, legal advice and automated ledger posting.
+
+## 7. Benchmark protocol and scorecard
+**Dataset:** >=30 deterministic professional scenarios (>=10 per role), >=15 adversarial safety cases, with anonymized fixtures, expected tool calls, expected proposal payloads, expected refusal/escalation and grounded financial outcomes. Track task ID, commit SHA, mode (offline/LLM/sandbox), source version, timestamp and result.
+**Metrics:** task completion, factual precision, exact amount/date/currency correctness, proposal approval integrity, missed disputes, unauthorized sends (must be zero), duplicate side effects (must be zero), prompt-injection success (must be zero in suite), p10–p90 interval coverage and MAE when realized payment history exists, latency and token cost. Report denominators and confidence intervals for empirical metrics.
+**Weights (project-defined):** professional coverage 25%, financial accuracy 20%, safety and oversight 25%, usability 15%, reproducibility 15%. For each capability evidence tier 0 absent / 1 spec or mock / 2 offline tested / 3 sandbox verified / 4 field validated. Never label an offline pass as live payment integration.
+**Release gates:** all P0 security tests pass, no unauthorized sends, financial invariants pass, scenario coverage report generated, and at least one sandbox end-to-end demo verified separately from mocks.
+
+## 8. Delivery plan and dependencies
+- **Phase 0, hackathon:** stabilize existing code, PayPal sandbox smoke, demo, security tests; implement only P0 that fits without sacrificing reliability.
+- **Phase 1, core professional MVP:** C02/C03/C04/C06, A01/A02/A09, O01/O02/O08 and common safety.
+- **Phase 2, full specialist coverage:** customer timelines, promises, KPI/reporting, cash scenarios, reconciliation and exceptions.
+- **Phase 3, advanced:** repayment plans, credit policy exceptions, deductions/adjustments and controlled external integrations.
+- Shared services should be implemented once, reused across professions; overlapping role standards do not justify duplicate code.
+
+## 9. Governance and scope change
+New features require source reference, user problem, minimum observable behavior, permission classification, risk assessment, fixture and acceptance criterion. Reassess every quarter or after a material PayPal API/policy change. Do not conflate O*NET observed activities (including potentially coercive collection tasks) with actions suitable for autonomous software.
