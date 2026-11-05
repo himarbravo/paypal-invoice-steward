@@ -62,7 +62,10 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
         "basis": "current open invoice face amounts",
         "limitations": [
             "Not a historical as-of reconstruction",
-            "Partial payments and remaining balances cannot be verified from the current Invoice model",
+            (
+                "Partial payments and remaining balances cannot be verified "
+                "from the current Invoice model"
+            ),
             "No FX conversion; currencies are never combined",
         ],
         "by_currency": {
