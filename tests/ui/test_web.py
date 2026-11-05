@@ -143,9 +143,9 @@ def test_sandbox_http_confirm_is_blocked_with_default_settings() -> None:
 def test_sandbox_health_shows_outbound_permission_without_credentials(enabled: bool) -> None:
     settings = Settings(mode="sandbox", sandbox_writes_enabled=enabled, db_path=":memory:")
     port = SandboxTestPort(today=lambda: TODAY)
-    health = TestClient(create_app(settings, port=port, today=lambda: TODAY)).get(
-        "/api/health"
-    ).json()
+    health = (
+        TestClient(create_app(settings, port=port, today=lambda: TODAY)).get("/api/health").json()
+    )
     assert health["mode"] == "sandbox"
     assert health["outbound_actions_enabled"] is enabled
     assert "client_secret" not in health
