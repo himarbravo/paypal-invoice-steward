@@ -1,24 +1,74 @@
 # Professional Scope, Strategy & Benchmark — PayPal Invoice Steward
 
-**Version:** 2.0 — 2026-11-05. **Status:** requirements baseline, not certification, production readiness or legal advice.
+**Version:** 2.1 — 2026-11-05. **Status:** requirements baseline, not certification, production readiness or legal advice.
 
 ## 1. Strategic thesis and users
 Build a **human-supervised AI Accounts Receivable / Credit Control copilot** for freelancers and SMBs using PayPal Invoicing. Outcomes: fewer forgotten invoices, trustworthy cash visibility, efficient and respectful collections, better account records and evidence-based owner decisions. Personas: business owner (primary), billing clerk, credit controller, bookkeeper (secondary). Focus: **B2B invoice-to-cash subset**, not all enterprise order-to-cash operations.
 
-## 2. Sources of truth, authority and boundaries
-| ID | Primary authority | What it actually supports | What it does NOT prove |
-|---|---|---|---|
-| CICM-PS | [Source](https://www.cicm.com/membership/professional-standards.html) | Professional credit/collections competencies, communication, disputes and ethical treatment | A binding legal requirement or certification for this software |
-| CICM-L2 | [Source](https://cicm.com/static/c03fcb76-af5d-4343-bfb76b85f826b911/c21e36f5-8c9a-4731-9f4793b074e4b33d/CICM-Level-2-Credit-Collections-Syllabus.pdf) | Professional credit/collections competencies, communication, disputes and ethical treatment | A binding legal requirement or certification for this software |
-| APQC-O2C | [Source](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | O2C process, cash application, exceptions and performance metrics | A binding legal requirement or certification for this software |
-| APQC-FLOW | [Source](https://www.apqc.org/What-Are-Procure-to-Pay-and-Order-to-Cash-Processes) | O2C process, cash application, exceptions and performance metrics | A binding legal requirement or certification for this software |
-| ONET-C | [Source](https://www.onetonline.org/link/summary/43-3011.00) | Observed occupational tasks for collectors or billing clerks | A binding legal requirement or certification for this software |
-| ONET-B | [Source](https://www.onetonline.org/link/summary/43-3021.00) | Observed occupational tasks for collectors or billing clerks | A binding legal requirement or certification for this software |
-| PAYPAL | [Source](https://developer.paypal.com/api/invoicing/v2/) | Available invoice API endpoints and technical constraints | Production permissions or verified sandbox success |
-| OWASP | [Source](https://genai.owasp.org/llmrisk2023-24/llm08-excessive-agency/) | LLM agent excessive-agency threat model | A binding legal requirement or certification for this software |
-| NIST | [Source](https://airc.nist.gov/airmf-resources/airmf/5-sec-core/) | AI risk governance and evaluation | A binding legal requirement or certification for this software |
+## 2. Source authority hierarchy (A / B / C) — normative for this benchmark
 
-**Evidence rules:** Source-to-feature mapping is a *product interpretation*, not an exact normative requirement. Each capability below has a source ID, explicit minimum behavior, test and priority. Professional occupational descriptions are not a mandate to automate every task. PayPal API availability does not mean our adapter implements the endpoint. Any jurisdiction-specific debt collection/privacy/accounting obligations require separate legal review.
+**Purpose:** evaluate professional capability against the right authority, rather than treating all reputable publications as interchangeable. A source's tier applies **within its stated domain**, not universally. These are **benchmark evidence tiers**, not a claim that every A source creates a legal obligation.
+
+### A — Direct sources of truth: correctness, constraints and permitted operations
+
+| Source ID | Authority | Direct truth within its domain | Applicability / boundary |
+|---|---|---|---|
+| PAYPAL | [PayPal Invoicing v2](https://developer.paypal.com/api/invoicing/v2/) | API endpoints, invoice states, required fields, supported operations | Provider contract only; never evidence of accounting correctness or authorization to execute |
+| APQC-PCF | [APQC Cross-Industry PCF 8.0](https://www.apqc.org/process-frameworks) | Official O2C/AR process taxonomy, process names and IDs | Taxonomy is authoritative **for APQC's classification**, not a legal or accounting standard |
+| APQC-METRIC | [APQC AR/O2C measures](https://www.apqc.org/How-Should-Order-to-Cash-And-Accounts-Receivable-Performance-Be-Measured-And-Improved) | Published APQC metric definitions and benchmarking methodology | A metric must cite its exact formula, population, period and edition before being labeled APQC-defined |
+| IFRS9 / IFRS15 | [IFRS 9](https://www.ifrs.org/issued-standards/list-of-standards/ifrs-9-financial-instruments/) / [IFRS 15](https://www.ifrs.org/issued-standards/list-of-standards/ifrs-15-revenue-from-contracts-with-customers/) | Accounting recognition, measurement and impairment **where IFRS applies** | Do not confuse expected credit loss with operational cash forecasting; not every SMB uses IFRS |
+| ES-LATE | [Spain Ley 3/2004](https://www.boe.es/buscar/act.php?id=BOE-A-2004-21830) | Payment terms and late-payment rules for covered Spanish commercial transactions | Jurisdiction, transaction type and applicable law must be established first |
+| GDPR | [EU GDPR / EDPB guidance](https://www.edpb.europa.eu/sme/be-compliant/process-personal-data-lawfully_en) | Personal-data obligations for covered processing | Legal basis, access, retention and minimization depend on context; guidance is explanatory, GDPR is the law |
+| US-REGF | [CFPB Regulation F](https://www.consumerfinance.gov/rules-policy/regulations/1006/) | Covered US consumer-debt collection rules | **Conditional only**: do not generalize to B2B debt or every original creditor |
+
+**Conflict rule:** determine jurisdiction, accounting framework, creditor/debtor relationship, transaction type and provider state **before** selecting an applicable A authority. Applicable law overrides voluntary frameworks; accounting standards govern accounting, PayPal governs its API, and APQC governs its own process/metric taxonomy. If no A source applies to a particular product policy, identify the decision as product-defined rather than inventing an obligation.
+
+### B — Professional agent practice: recommended behavior, controls and judgment
+
+| Source ID | Reference | Agent-design objective | Limitation |
+|---|---|---|---|
+| CICM-PS / CICM-L2 | [CICM Professional Standards](https://www.cicm.com/static/2af04f90-d084-40bc-9aa86f51a63fef8b/CICM-Professional-Standards.pdf) and qualification syllabi | Respectful collections, credit policy, disputes, payment commitments, escalation | Human professional competencies; distinguish operational from senior management expectations |
+| NACM | [NACM Best Credit and Collection Practices](https://nacm.org/558-resources/best-credit-and-collection-practices.html) | B2B credit terms, exposure, collection sequencing, dispute and exception handling | US-oriented professional guidance; not binding legislation |
+| IOFM | [IOFM AR training/certification](https://www.iofm.com/certification/ar-certification/) | Practical AR, billing, cash application, deductions and internal controls | Public curricula establish topics, not unrestricted access to proprietary course content |
+| OWASP-2025 | [OWASP LLM Top 10 (2025)](https://genai.owasp.org/llm-top-10/) | Resist prompt injection (LLM01), sensitive-information disclosure (LLM02), excessive agency (LLM06) | Security risk taxonomy, not an AR occupational standard; version matters |
+| NIST-AIRMF | [NIST AI RMF Core](https://airc.nist.gov/airmf-resources/airmf/5-sec-core/) | Human oversight, accountability, evidence, risk monitoring and management | Voluntary AI governance, not automatic legal compliance |
+
+### C — Optional corroboration, comparison and advanced scope
+
+| Source ID | Reference | Use |
+|---|---|---|
+| ONET-C / ONET-B | [O*NET collectors](https://www.onetonline.org/link/summary/43-3011.00) / [billing clerks](https://www.onetonline.org/link/summary/43-3021.00) | Check whether the capability resembles real occupational tasks; **not** primary evidence of correct operating procedure |
+| APQC-BENCH | [APQC benchmarking](https://www.apqc.org/benchmarking) | Compare performance to peer groups when comparable datasets and definitions are available |
+| CICM-ADV | CICM advanced qualifications | Future specialist/management capabilities outside the initial operational baseline |
+| IOFM-ADV | IOFM advanced training | Optional deeper workflow coverage, subject to public evidence/access |
+
+### Evidence acceptance and issue-writing contract
+
+For **every** capability or future GitHub issue, document:
+1. **User outcome and scope:** business persona, observable behavior, explicit exclusions.
+2. **A evidence:** applicable provider/API, process definition, accounting/legal constraint, or **A: not applicable** with reason; exact document, section/operation/identifier, version, URL and applicability conditions.
+3. **B practice:** professional guidance and resulting agent behavior; distinguish recommendation from a mandatory rule.
+4. **C corroboration:** optional occupation task or external benchmark; no blocker if absent.
+5. **Product decision:** any custom thresholds, UX, security implementation or test targets, labeled as our choice.
+6. **Objective acceptance criteria:** Given/When/Then, expected output and provenance, human decision rights, edge cases, and evidence to be attached when eventually tested.
+7. **Evidence status:** VERIFIED (exact primary passage/identifier checked), PROVISIONAL (relevant source but section or applicability not checked), or PRODUCT (explicit project choice). **No URL-only evidence can be marked VERIFIED.**
+
+**Priority:** A correctness/applicability conflicts block a claim of professional correctness; B deviations require documented rationale; C is non-blocking unless explicitly adopted as a project goal. Do not close issues or claim compliance based on citation presence alone.
+
+### Concrete objectives to derive future issues (existing 30-capability IDs)
+
+| Workstream / issue IDs | A: what must be defined correctly | B: expected agent practice | C: optional comparator | Documentation deliverable and acceptance target |
+|---|---|---|---|---|
+| Credit policy and collections — C01–C04, C10 | Applicable payment terms and late-payment rules; APQC credit/collections process scope; PayPal status provenance | CICM/NACM risk triage, respectful cadence, exception approvals | O*NET collector tasks | Policy decision table: eligible contact, due dates, amount, holds, owner approvals and explicit no-action cases |
+| Commitments, disputes and treatment — C05–C07, C09 | Jurisdiction-specific customer/debtor restrictions and privacy obligations; source-backed balance/status | CICM/NACM promise tracking, dispute hold, fair treatment, human escalation | O*NET customer interaction tasks | Case-state and escalation specification; disputed/committed cases never treated as ordinary overdue outreach |
+| AR process, aging and measures — A01–A04, A08 | APQC PCF 8.0 process mapping and exact KPI formula/denominator; IFRS only for applicable accounting claims | IOFM AR practice; CICM collections interpretation | APQC peer benchmarks | Metric dictionary and source-to-field map: face amount vs verified residual, aging as-of basis, DSO/ADD and forecast assumptions |
+| Payments, adjustments and exceptions — A05–A07, O06 | PayPal operation semantics; APQC cash application and deductions; applicable accounting rules | IOFM cash application, NACM dispute handling and reconciliation | O*NET posting tasks | Canonical event/adjustment taxonomy, reconciliation and exception decision table; distinguish hosted payment, external payment, refund and credit note |
+| Billing and customer operations — O01–O05, O07 | PayPal invoice lifecycle/field constraints; applicable privacy and payment-term rules | IOFM verification and records; CICM/NACM customer communication | O*NET billing/collector tasks | Workflow specification with preconditions, preview, provenance, corrections, customer history and safe escalation |
+| Evaluation and agent controls — C08, A09–A10, O08–O10 | Provider write constraints and applicable data-protection rules; **no invented legal obligations** | OWASP 2025 and NIST AI RMF oversight, least privilege, auditability | O*NET task coverage | Scenario/controls specification with human approval, untrusted-input handling, failure behavior and evidence tiers |
+
+**Traceability:** the existing 30 issues (#41–70) remain the implementation backlog; this table is the **requirements-writing template**, not a declaration that each issue is already fully evidenced. Before issue editing, add a per-capability A/B/C row with exact sections and VERIFIED/PROVISIONAL status. Avoid opening duplicate issues.
+
+**Source-quality finding:** see [independent meta-audit](professional-source-quality-meta-audit.md). The earlier [final source audit](professional-benchmark-source-audit.md) is a historical 30-capability scope map; its claim of completed source-selection validation is **superseded** by this hierarchy and its outstanding applicability/precision checks.
 
 ## 3. Existing verified repository baseline
 The Claude tool-calling agent exposes `list_invoices`, `get_cash_flow_forecast`, `list_proposals`, `propose_invoice`, `propose_reminder`; fallback is rules-based. Forecast uses payment-delay distributions and Monte Carlo p10/p90 estimates. ProposalService performs validation, human approval, payload hash, CAS and uncertain-outcome handling. PayPal client is sandbox-only. **Not independently verified:** real PayPal sandbox lifecycle, email delivery, forecasting calibration on real businesses. **Data caveat:** paid dates may be imputed from due dates if PayPal transaction date missing; must mark such observations as unverified for calibration.
@@ -369,3 +419,8 @@ See [Professional benchmark evidence validation](professional-benchmark-evidence
 ## 13. Final documentary source audit
 
 The authoritative documentary disposition is [Professional benchmark — final source audit](professional-benchmark-source-audit.md), dated 2026-11-05. Its DIRECT/DERIVED/PRODUCT classifications and limitations supersede any earlier claims of comprehensive source validation. The audit closes documentary scope review only, not software testing or certification.
+
+
+## 14. Authority and future issue criteria
+
+Section 2 (A/B/C source hierarchy, acceptance contract and six workstream objectives) is the **current normative documentation baseline** for translating professional evidence into GitHub issues. Older sections and linked evidence registers remain historical where they conflict with Section 2; issue priorities and implementation status remain unchanged.
