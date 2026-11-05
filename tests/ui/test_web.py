@@ -90,9 +90,7 @@ def test_remote_clients_cannot_access_demo(path: str) -> None:
 def test_remote_clients_cannot_confirm_proposals() -> None:
     app = create_app(Settings(mode="demo", db_path=":memory:"), today=lambda: TODAY)
     remote = TestClient(app, base_url="http://127.0.0.1", client=("203.0.113.9", 54000))
-    response = remote.post(
-        "/api/proposals/some-id/confirm", json={"payload_hash": "a" * 64}
-    )
+    response = remote.post("/api/proposals/some-id/confirm", json={"payload_hash": "a" * 64})
     assert response.status_code == 403
 
 
