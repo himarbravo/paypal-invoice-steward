@@ -24,6 +24,7 @@ class Settings:
     # Policy limits enforced by the server, never by the model.
     max_invoice_amount: float = 10_000.0
     reminder_cooldown_days: int = 3
+    sandbox_writes_enabled: bool = False
 
     @property
     def llm_enabled(self) -> bool:
@@ -34,6 +35,7 @@ class Settings:
         return Policy(
             max_invoice_amount=self.max_invoice_amount,
             reminder_cooldown_days=self.reminder_cooldown_days,
+            sandbox_writes_enabled=self.sandbox_writes_enabled,
         )
 
 
@@ -47,6 +49,11 @@ def load_settings() -> Settings:
     if bool(client_id) != bool(client_secret):
         raise RuntimeError("PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET must be set together.")
     mode = requested or ("sandbox" if client_id and client_secret else "demo")
+    writes_setting = (os.getenv("STEWARD_SANDBOX_WRITES") or "").strip()
+    if writes_setting not in ("", "enabled", "disabled"):
+        raise RuntimeError("STEWARD_SANDBOX_WRITES must be 'enabled' or 'disabled'.")
+    if writes_setting == "enabled" and mode != "sandbox":
+        raise RuntimeError("STEWARD_SANDBOX_WRITES=enabled requires sandbox mode.")
     if mode == "sandbox" and not (client_id and client_secret):
         raise RuntimeError(
             "STEWARD_MODE=sandbox needs PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET "
@@ -62,4 +69,5 @@ def load_settings() -> Settings:
         mode=mode,
         max_invoice_amount=float(os.getenv("STEWARD_MAX_INVOICE", "10000")),
         reminder_cooldown_days=int(os.getenv("STEWARD_REMINDER_COOLDOWN_DAYS", "3")),
+        sandbox_writes_enabled=writes_setting == "enabled",
     )
