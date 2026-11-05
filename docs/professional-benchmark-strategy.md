@@ -364,3 +364,8 @@ Before changing an issue from proposed to complete, reviewers must (a) verify th
 ## 12. Validated evidence register
 
 See [Professional benchmark evidence validation](professional-benchmark-evidence.md) for the 2026-11-05 source-by-source assessment of all 30 capabilities. That document distinguishes directly supported professional tasks, derived product features, and independent software safety/testing decisions. Its qualifications override any earlier implication that all proposed features are formally mandated by CICM, APQC, or O*NET.
+
+
+## 13. Final documentary source audit
+
+The authoritative documentary disposition is [Professional benchmark — final source audit](professional-benchmark-source-audit.md), dated 2026-11-05. Its DIRECT/DERIVED/PRODUCT classifications and limitations supersede any earlier claims of comprehensive source validation. The audit closes documentary scope review only, not software testing or certification.
