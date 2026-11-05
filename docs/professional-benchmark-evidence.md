@@ -68,4 +68,4 @@
 
 **OPEN: software validation.** For each capability, require scenario fixtures, expected financial outputs, adversarial/authorization cases, test run artifact, code commit and independent PayPal sandbox proof when applicable. Record source version/date and evidence tier. No issues should be closed based on this document alone.
 
-**Verdict:** professional *scope is defensible as a proposed copilot benchmark*, with 12 direct/derived vs product distinctions shown individually above. The product is **not professionally certified**, and its implementation is **not yet validated**.
+**Verdict:** professional *scope is defensible as a proposed copilot benchmark*, with direct, derived and product-specific requirements explicitly distinguished above. The product is **not professionally certified**, and its implementation is **not yet validated**.
