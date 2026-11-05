@@ -7,6 +7,7 @@ misconfiguration can never touch real money.
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections.abc import Callable
 from datetime import date, timedelta
@@ -18,6 +19,7 @@ from ..core.models import JSON, Invoice
 from ..core.ports import PayPalError, PayPalUncertain
 
 SANDBOX_URL = "https://api-m.sandbox.paypal.com"
+INVOICING_SCOPE = "https://uri.paypal.com/services/invoicing"
 
 log = logging.getLogger(__name__)
 
@@ -116,6 +118,7 @@ class SandboxPayPal:
         transport: httpx.BaseTransport | None = None,
         today: Callable[[], date] = date.today,
         timeout: float = 15.0,
+        expected_app_id: str | None = None,
     ) -> None:
         if base_url.rstrip("/") != SANDBOX_URL:
             raise ValueError("Invoice Steward only connects to the official PayPal sandbox.")
@@ -123,6 +126,7 @@ class SandboxPayPal:
             raise ValueError("PayPal sandbox credentials must not be empty.")
         self._client_id = client_id
         self._client_secret = client_secret
+        self._expected_app_id = expected_app_id
         self._today = today
         self._http = httpx.Client(base_url=base_url, timeout=timeout, transport=transport)
         self._token: str | None = None
@@ -146,10 +150,39 @@ class SandboxPayPal:
             ) from exc
         if resp.status_code != 200:
             raise PayPalError("PayPal rejected the sandbox credentials.", resp.status_code)
-        body = resp.json()
-        token = str(body["access_token"])
+        try:
+            body = resp.json()
+        except ValueError:
+            raise PayPalError("PayPal returned malformed OAuth token metadata.") from None
+        if not isinstance(body, dict):
+            raise PayPalError("PayPal returned malformed OAuth token metadata.")
+        token = body.get("access_token")
+        scope = body.get("scope")
+        app_id = body.get("app_id")
+        token_type = body.get("token_type")
+        expiry = body.get("expires_in")
+        if (
+            not isinstance(token, str)
+            or not token
+            or any(c.isspace() for c in token)
+            or not isinstance(token_type, str)
+            or token_type.lower() != "bearer"
+            or not isinstance(scope, str)
+            or INVOICING_SCOPE not in scope.split()
+            or not isinstance(app_id, str)
+            or not app_id.strip()
+        ):
+            raise PayPalError("PayPal token lacks verified invoicing authorization.")
+        if self._expected_app_id and app_id != self._expected_app_id:
+            raise PayPalError("PayPal sandbox app ID does not match the configured app.")
+        try:
+            lifetime = float(expiry)
+        except (TypeError, ValueError):
+            raise PayPalError("PayPal returned an invalid OAuth token lifetime.") from None
+        if not math.isfinite(lifetime) or lifetime <= 0:
+            raise PayPalError("PayPal returned an invalid OAuth token lifetime.")
         self._token = token
-        self._token_expires = time.time() + float(body.get("expires_in", 300))
+        self._token_expires = time.time() + min(lifetime, 86_400.0)
         return token
 
     @staticmethod
@@ -186,7 +219,9 @@ class SandboxPayPal:
         except httpx.HTTPError as exc:
             raise PayPalUncertain(f"No response from PayPal ({type(exc).__name__}).") from exc
 
-        if resp.status_code == 401 and _retry:
+        # Only replay safe GET requests after a token refresh. Invoicing POST
+        # operations (including send/remind) must not be automatically replayed.
+        if resp.status_code == 401 and _retry and method.upper() == "GET":
             self._token = None
             return self._request(
                 method, path, json=json, params=params, headers=headers, _retry=False
