@@ -18,12 +18,8 @@ def test_version_flag_prints_and_exits(
     assert capsys.readouterr().out.startswith("paypal-invoice-steward ")
 
 
-@pytest.mark.parametrize(
-    "host", ["0.0.0.0", "192.168.1.12", "steward.example", "127.0.0.2", ""]
-)
-def test_server_refuses_non_loopback_bindings(
-    monkeypatch: "pytest.MonkeyPatch", host: str
-) -> None:
+@pytest.mark.parametrize("host", ["0.0.0.0", "192.168.1.12", "steward.example", "127.0.0.2", ""])
+def test_server_refuses_non_loopback_bindings(monkeypatch: "pytest.MonkeyPatch", host: str) -> None:
     from paypal_invoice_steward.__main__ import main
 
     monkeypatch.setattr("sys.argv", ["paypal-invoice-steward"])
@@ -33,9 +29,7 @@ def test_server_refuses_non_loopback_bindings(
 
 
 @pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "::1"])
-def test_server_allows_loopback_binding(
-    monkeypatch: "pytest.MonkeyPatch", host: str
-) -> None:
+def test_server_allows_loopback_binding(monkeypatch: "pytest.MonkeyPatch", host: str) -> None:
     import uvicorn
 
     from paypal_invoice_steward.__main__ import main
