@@ -15,7 +15,7 @@ This document is the source of truth for any agent (Claude, Codex, Copilot, etc.
 
 ## 1. Principles
 
-1. **Nothing enters `main` without a PR.** `main` always builds and passes the tests.
+1. **Nothing enters `main` without a PR and verified green CI.** The current PR head SHA and target `main` must both be healthy before a merge. A check that is failing, cancelled, skipped, pending, missing, stale or inaccessible is **not green**. Never infer success from an email, an old run or local checks.
 2. **One task = one issue = one branch = one PR.** If the work grows, it is split into new issues.
 3. **Small, reviewable changes.** Target: PRs under 400 changed lines (not counting lockfiles or generated files).
 4. **State lives on GitHub, not in the agent's head.** Decisions, blockers and progress are written in the issue or the PR.
@@ -81,10 +81,13 @@ chore(ci): cache dependencies
   - [ ] Docs updated if behaviour, structure or commands change.
   - [ ] Entry in `CHANGELOG.md` → `[Unreleased]` if something visible to the user changes.
   - [ ] The diff contains no files unrelated to the task, no secrets and no generated artifacts.
-- Merge strategy: **squash and merge** only. Delete the branch after merging.
+- Merge strategy: **squash and merge** only, **after the fail-closed gate in section 2.5**. Delete the branch after merging.
 
-### 2.5 Review
-- An agent **does not approve or merge its own PR** unless the user explicitly authorises it.
+### 2.5 Review and mandatory pre-merge gate
+- An agent **does not approve or merge its own PR** unless the user explicitly authorises it. Such authorisation never waives the CI gate below.
+- **Immediately before each merge**, query GitHub for the live PR head SHA, base branch and base SHA, mergeability, review state, and required checks. Verify that CI (`required` and all required workflows), conventions and applicable security checks have concluded successfully for the **current** head SHA; verify that target `main` is also green at its current tip. Recheck after any new commit, rebase, base update or rerun. Local tests and previously green SHAs are not substitutes.
+- **Fail closed:** if any required check is failing, pending, cancelled, skipped, absent, stale, timed out, or cannot be inspected, **do not merge**. Do not approve a self-authored PR, bypass the queue, use admin override, push directly, or weaken branch protection/check requirements to circumvent it. Report the exact failed check and run URL; fix the cause in the correct issue/branch and rerun.
+- **Main CI incident:** if `main` is red or unverifiable, freeze routine feature/refactor merges and prioritize a dedicated, reviewable CI-remediation PR. Keep existing protections on. Resume normal work only after `main` and the candidate PR have current verified green checks. A remediation PR is not exempt from this gate; if protection settings make recovery impossible, stop and escalate rather than bypass silently.
 - Review comments are addressed with new commits (no force-push during review, unless a rebase is requested).
 - Reviewers label findings as `blocking`, `suggestion` or `question`.
 
@@ -157,7 +160,8 @@ These rules do not depend on anyone remembering them: GitHub checks them on ever
 | `conventions` | PR title and branch name as in sections 2.2 and 2.3 | [.github/workflows/pr.yml](.github/workflows/pr.yml) |
 | `main` protection | No direct push, no force-push, squash merge only with green checks | [scripts/setup_github.sh](scripts/setup_github.sh) |
 
-- If a control fails, fix the cause. Never edit the workflow or the protection to make it pass.
+- If a control fails, fix the cause. Never edit the workflow or the protection to make it pass. Do not treat a check that was cancelled by concurrency as successful.
+- Before requesting any merge, record in the PR the checked head/base SHAs, the current CI run URLs, required check conclusions, and the result of the section 2.5 gate. A check reported by email is only an alert; GitHub's live status is authoritative.
 - `dependabot/...` branches are created by Dependabot to update dependencies and are the only exception to the naming format.
 - `scripts/setup_github.sh` changes the repository configuration: a person runs it, not an agent.
 
@@ -168,10 +172,11 @@ These rules do not depend on anyone remembering them: GitHub checks them on ever
 1. Read this file and the assigned issue.
 2. `git switch main && git pull --ff-only && git switch -c <type>/<n>-<desc>`
 3. Implement in small, conventional commits.
-4. Run tests and lint.
+4. Run lint, format, types and tests; keep a record of results.
 5. `git push -u origin HEAD && gh pr create --draft --fill` (with `Closes #<n>`).
-6. Complete the PR template, mark it *ready*, wait for review.
-7. Report to the user: link to the PR, what was done, what is pending.
+6. Complete the PR template, mark it *ready*, wait for review. **Right before merge apply section 2.5 to the live PR and `main` SHAs; never rely on yesterday's green run.**
+7. If checks are not verifiably green, stop, report the blocking run, and fix it in a separate issue/PR where appropriate. Do not claim the task is done.
+8. Report to the user: link to the PR, what was done, what is pending.
 
 ---
 
@@ -179,7 +184,7 @@ These rules do not depend on anyone remembering them: GitHub checks them on ever
 
 | Situation | What to do |
 |-----------|------------|
-| CI fails | Read the log, reproduce it locally and fix the cause. Do not retry blindly or touch the workflow. |
+| CI fails (on PR or `main`) | Read the failing job log, reproduce locally and fix the cause. No merge while red or unverifiable; if `main` is red, freeze routine merges and open a CI-remediation issue/PR. Do not retry blindly or weaken workflow requirements. |
 | A test fails and you think the test is wrong | Explain it in the PR and wait for confirmation before changing it. |
 | Conflicts when rebasing | Resolve them keeping what is already on `main`. If you do not understand someone else's code, ask. |
 | The issue is ambiguous or contradicts this file | Ask in the issue. Do not pick the most convenient reading. |
@@ -198,7 +203,7 @@ These rules do not depend on anyone remembering them: GitHub checks them on ever
 A task is done when **all** of the following hold:
 
 - The issue's acceptance criteria are met and ticked.
-- Checks pass locally and in CI.
+- Lint, formatting, types and tests pass locally; all required checks for the current PR head SHA and current `main` tip are verifiably green immediately before merge (section 2.5).
 - The PR has the full template and `Closes #<n>`.
 - Documentation and `CHANGELOG.md` reflect the change, if applicable.
 - The user has received a report with the PR link, what was done, what could not be verified and what is pending.
