@@ -424,3 +424,32 @@ The authoritative documentary disposition is [Professional benchmark — final s
 ## 14. Authority and future issue criteria
 
 Section 2 (A/B/C source hierarchy, acceptance contract and six workstream objectives) is the **current normative documentation baseline** for translating professional evidence into GitHub issues. Older sections and linked evidence registers remain historical where they conflict with Section 2; issue priorities and implementation status remain unchanged.
+
+
+## 15. A/B primary-source feature-gap review (2026-11-05)
+
+**Method:** compared all 30 existing capability issue descriptions (#41–70) against APQC PCF 8.0 9.2.3–9.2.5, PayPal Invoicing v2/reference/webhooks and NACM collections policy. All 30 existing issues now contain an A/B/C source mapping with applicability caveats; this is requirements documentation, not proof of implementation.
+
+### Net-new gaps (new issues)
+- [#71 Verified PayPal invoicing webhook sync and reconciliation](https://github.com/himarbravo/paypal-invoice-steward/issues/71): PayPal documents state-transition events; define authenticity, deduplication, ordering, stale/missing event recovery and reconciliation. **P0 requirements**, not mandatory API architecture or implemented functionality. Source: https://developer.paypal.com/api/invoicing/webhooks/ .
+- [#72 Reconcile merchant automatic reminders with contact policy](https://github.com/himarbravo/paypal-invoice-steward/issues/72): PayPal supports merchant-level automatic reminders and cancellation/suspension operations; internal dispute/cooldown holds alone cannot guarantee stopping provider-managed reminders. **P0 requirements**, human decision and provider confirmation. Source: https://developer.paypal.com/api/invoicing/v2/ ; NACM https://nacm.org/558-resources/best-credit-and-collection-practices.html .
+
+### Source-driven refinements assigned to existing issues (no duplicates)
+- **A05 #55 and O06 #66:** distinguish hosted PayPal payments (automatically recorded) from manually recorded external payments; no double posting. https://developer.paypal.com/invoicing/reference/ .
+- **A06 #56:** PayPal external refund recording is not a refund of a PayPal-hosted payment; the latter uses the Payments Refund API. Credit notes, adjustments, cancellations and write-offs remain separate concepts. https://developer.paypal.com/invoicing/reference/ .
+- **C03 #43, C06 #46, C09 #49, O05 #65:** NACM collection timing, disputes, account holds and ethical treatment; exact cadence is product policy and applicable law is jurisdiction-dependent. https://nacm.org/558-resources/best-credit-and-collection-practices.html .
+- **A01 #51, A03 #53, C10 #50:** APQC PCF 8.0 identifies 9.2.3.1 (10799) AR policies, 9.2.3.4 (10802) AR reports, 9.2.4.1 (10804) delinquency policies, 9.2.4.2 (10805) delinquent-balance analysis, 9.2.4.4 (10807) internal resolution, 9.2.5 (10746) adjustments/deductions. Exact KPI formula/denominator still requires separate verification. https://www.apqc.org/resources/benchmarking/open-standards-benchmarking/measures/total-cost-perform-processes-process-1 .
+
+### Explicitly out of autonomous scope (documented, not silently omitted)
+| Source practice / operation | Disposition | Rationale and owner |
+|---|---|---|
+| NACM third-party collection agency or attorney referral; APQC internal resolution 9.2.4.4 | **Human-only, no automated referral** | Legal and jurisdictional risk; agent may prepare factual owner-reviewed packet under O07 #67 |
+| NACM credit hold, settlement authorization, term or limit changes | **Human-only decision** | Business credit policy and customer impact; C10 #50 defines approvals, not automatic credit restriction |
+| APQC 9.2.4.5 write-offs, 9.2.5 accounting adjustments | **No autonomous posting/write-off** | Requires accounting policy, ledger integration and human authorization; A06 #56 documents options and unsupported operations |
+| APQC 9.2.4.6 recovery workouts / renegotiation | **Advisory only** | No autonomous binding payment-plan negotiation; C07 #47 and O07 #67 cover owner review |
+| APQC 9.2.3.5 general-ledger posting | **Deferred / integration-dependent** | Product is an invoice copilot, not a general ledger; do not claim accounting reconciliation without ERP/ledger source |
+| IFRS 9 expected-credit-loss accounting | **Conditional / deferred** | Not interchangeable with cash-flow forecasting; requires reporting framework, credit-risk data and accounting judgment |
+| Autonomous legal action, debtor tracing, disconnection, repossession | **Excluded** | Outside intended safe B2B invoice-to-cash copilot; O07 #67 may only assemble factual evidence for a human |
+| PayPal merchant-level auto-reminder changes | **Human-authorized only** | #72; do not imply internal dispute holds automatically stop external sends |
+
+**Audit limitation:** This was a focused review of public APQC/PayPal/NACM primary materials plus existing issues, not a comprehensive legal or proprietary training-content audit. IOFM and CICM fine-grained sections, metric formulas, and applicability of IFRS/individual jurisdictions remain provisional. Any future gap should be checked against existing issue scope before creating a new issue.
