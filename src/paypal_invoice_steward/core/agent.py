@@ -166,9 +166,7 @@ def _model_invoice(row: JSON, fields: tuple[str, ...]) -> JSON | None:
     result = {"id": invoice_id}
     for name in fields:
         if name in row:
-            result[name] = (
-                _model_currency(row[name]) if name == "currency" else row[name]
-            )
+            result[name] = _model_currency(row[name]) if name == "currency" else row[name]
     return result
 
 
