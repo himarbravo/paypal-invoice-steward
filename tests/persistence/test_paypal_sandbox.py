@@ -44,6 +44,37 @@ def test_refuses_non_sandbox_url() -> None:
         SandboxPayPal("i", "s", base_url="https://api-m.paypal.com")
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://sandbox.example.com",
+        "https://api-m.sandbox.paypal.com.evil.example",
+        "https://api-m.sandbox.paypal.com@evil.example",
+        "http://api-m.sandbox.paypal.com",
+        "https://api-m.sandbox.paypal.com:444",
+        "https://api-m.sandbox.paypal.com?redirect=evil.example",
+        "https://api-m.paypal.com",
+    ],
+)
+def test_refuses_untrusted_or_insecure_sandbox_lookalikes(url: str) -> None:
+    with pytest.raises(ValueError, match="official PayPal sandbox"):
+        SandboxPayPal("i", "s", base_url=url)
+
+
+def test_accepts_canonical_sandbox_with_trailing_slash() -> None:
+    port = SandboxPayPal("i", "s", base_url="https://api-m.sandbox.paypal.com/")
+    assert port.mode == "sandbox"
+
+
+@pytest.mark.parametrize(
+    ("client_id", "client_secret"),
+    [("", "secret"), ("id", ""), (" ", "secret"), ("id", " ")],
+)
+def test_refuses_blank_credentials(client_id: str, client_secret: str) -> None:
+    with pytest.raises(ValueError, match="credentials"):
+        SandboxPayPal(client_id, client_secret)
+
+
 def test_normalize() -> None:
     inv = normalize_invoice(RAW)
     assert (inv.status, inv.amount, inv.currency, inv.customer_name) == (

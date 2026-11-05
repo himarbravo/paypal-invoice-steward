@@ -52,13 +52,17 @@ class Assistant(Protocol):
 def build_port(settings: Settings, today: Callable[[], date]) -> PayPalPort:
     """The real sandbox when credentials are set, otherwise the demo."""
     if settings.mode == "sandbox":
+        if not settings.paypal_client_id or not settings.paypal_client_secret:
+            raise ValueError("Sandbox mode requires both PayPal credentials.")
         return SandboxPayPal(
-            settings.paypal_client_id or "",
-            settings.paypal_client_secret or "",
+            settings.paypal_client_id,
+            settings.paypal_client_secret,
             settings.paypal_base_url,
             today=today,
         )
-    return DemoPayPal(today=today)
+    if settings.mode == "demo":
+        return DemoPayPal(today=today)
+    raise ValueError("Only demo and sandbox modes are supported.")
 
 
 def create_app(

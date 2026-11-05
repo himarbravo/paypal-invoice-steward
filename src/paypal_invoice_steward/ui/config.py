@@ -42,10 +42,11 @@ def load_settings() -> Settings:
     client_id = os.getenv("PAYPAL_CLIENT_ID") or None
     client_secret = os.getenv("PAYPAL_CLIENT_SECRET") or None
     requested = (os.getenv("STEWARD_MODE") or "").strip().lower()
-    if requested in ("demo", "sandbox"):
-        mode = requested
-    else:
-        mode = "sandbox" if client_id and client_secret else "demo"
+    if requested and requested not in ("demo", "sandbox"):
+        raise RuntimeError("STEWARD_MODE must be 'demo' or 'sandbox'.")
+    if bool(client_id) != bool(client_secret):
+        raise RuntimeError("PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET must be set together.")
+    mode = requested or ("sandbox" if client_id and client_secret else "demo")
     if mode == "sandbox" and not (client_id and client_secret):
         raise RuntimeError(
             "STEWARD_MODE=sandbox needs PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET "

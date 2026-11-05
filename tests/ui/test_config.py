@@ -1,6 +1,9 @@
+from datetime import date
+
 import pytest
 
-from paypal_invoice_steward.ui.config import load_settings
+from paypal_invoice_steward.ui.config import Settings, load_settings
+from paypal_invoice_steward.ui.web import build_port
 
 
 @pytest.fixture(autouse=True)
@@ -39,3 +42,35 @@ def test_policy_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("STEWARD_REMINDER_COOLDOWN_DAYS", "7")
     policy = load_settings().policy
     assert policy.max_invoice_amount == 500 and policy.reminder_cooldown_days == 7
+
+
+@pytest.mark.parametrize("key", ["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET"])
+def test_partial_paypal_credentials_fail_closed(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(key, "only-one-half")
+    with pytest.raises(RuntimeError, match="must be set together"):
+        load_settings()
+
+
+def test_invalid_mode_does_not_silently_use_demo(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("STEWARD_MODE", "production")
+    with pytest.raises(RuntimeError, match="STEWARD_MODE"):
+        load_settings()
+
+
+def test_explicit_demo_is_allowed_with_complete_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("STEWARD_MODE", "demo")
+    assert load_settings().mode == "demo"
+
+
+def test_manual_sandbox_configuration_requires_credentials() -> None:
+    with pytest.raises(ValueError, match="requires both PayPal credentials"):
+        build_port(Settings(mode="sandbox"), date.today)
+
+
+def test_manual_invalid_runtime_mode_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Only demo and sandbox"):
+        build_port(Settings(mode="production"), date.today)

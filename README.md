@@ -36,7 +36,7 @@ Demo mode uses a built-in fake PayPal with five customers and 23 invoices, so ev
 2. `cp .env.example .env` and fill in `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and, optionally, `ANTHROPIC_API_KEY`.
 3. `paypal-invoice-steward`
 
-The PayPal client refuses any base URL that is not the sandbox, so a misconfiguration cannot touch real money.
+The PayPal client only accepts `https://api-m.sandbox.paypal.com` (an optional trailing slash is allowed), never a hostname that merely contains `sandbox`. Incomplete credentials or an unrecognized `STEWARD_MODE` cause startup to fail instead of silently showing fake data. The MVP connects to one merchant's own sandbox app credentials; third-party merchant onboarding and verified merchant identity/scopes are not yet implemented.
 
 ## Safety model
 
