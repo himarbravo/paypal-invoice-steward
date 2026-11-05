@@ -1,6 +1,8 @@
 # Demo video script
 
-Target 2:30, limit 3:00. Record the app in demo mode at http://127.0.0.1:8000, or the hosted demo. Voice-over in English. No third-party music.
+Target 2:30, limit 3:00. Voice-over in English. No third-party music.
+
+**Accuracy / security gate:** This script currently demonstrates the **offline fake-PayPal mode** only. For the hackathon submission, show separately that the application really works with **PayPal sandbox and an AI tool**, or revise the video to include a visible genuine sandbox read/draft/send sequence. Do not present simulated failures/payments as provider-verified. The current unauthenticated app must remain **localhost-only**, not publicly hosted or tunneled. Do not record secrets or real customer data.
 
 **0:00 – 0:20 · The problem**
 "Small businesses spend hours chasing late invoices and guessing when cash will arrive. Invoice Steward is an AI agent that does the chasing and the forecasting, but never sends anything without you."
