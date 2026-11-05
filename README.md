@@ -66,6 +66,7 @@ public repository, public video or test fixtures.
 | Timeout after PayPal already sent | The proposal becomes *unverified*, never *failed*. "Check PayPal" looks the invoice up by its reference (`STW-xxxxxxxx`, used as the invoice number) before anything is retried, so there are no duplicates. |
 | Reminder with an unknown outcome | Never retried automatically; a person checks PayPal first. |
 | Unexpected PayPal status | Shown as unknown, left out of the forecast, no reminders. |
+| Untrusted PayPal error message contains PII or secrets | API responses, model tool results and proposal/audit errors expose only safe categories and a bounded HTTP code; raw upstream error details are not echoed. |
 | Risky input | Server-side policy: maximum amount, EUR/USD/GBP only, 1 to 90 day terms, reminders only for open invoices that are overdue or due within 3 days, 3-day cooldown. |
 
 ## Development
