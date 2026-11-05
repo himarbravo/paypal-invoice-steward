@@ -4,6 +4,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
 from paypal_invoice_steward.persistence.paypal_demo import DemoPayPal
 from paypal_invoice_steward.ui.config import Settings
 from paypal_invoice_steward.ui.web import create_app
@@ -149,3 +151,43 @@ def test_sandbox_health_shows_outbound_permission_without_credentials(enabled: b
     assert health["mode"] == "sandbox"
     assert health["outbound_actions_enabled"] is enabled
     assert "client_secret" not in health
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [PayPalError("LEAK_TEST_SECRET", 422), PayPalUncertain("LEAK_TEST_SECRET")],
+)
+def test_http_errors_do_not_expose_paypal_details(
+    monkeypatch: pytest.MonkeyPatch, failure: Exception
+) -> None:
+    port = DemoPayPal(today=lambda: TODAY)
+
+    def broken_list() -> list[Invoice]:
+        raise failure
+
+    monkeypatch.setattr(port, "list_invoices", broken_list)
+    client = TestClient(
+        create_app(Settings(mode="demo", db_path=":memory:"), port=port, today=lambda: TODAY)
+    )
+    reply = client.get("/api/invoices")
+    assert reply.status_code == 502
+    assert "LEAK_TEST_SECRET" not in reply.text
+    assert reply.json()["error"].startswith("PayPal")
+
+
+def test_agent_failure_does_not_log_provider_secret(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    class Broken:
+        mode = "broken"
+
+        def run(self, session_id: str, user_text: str) -> Any:
+            raise RuntimeError("LEAK_TEST_SECRET")
+
+    settings = Settings(mode="demo", db_path=":memory:")
+    client = TestClient(create_app(settings, agent=Broken(), today=lambda: TODAY))
+    with caplog.at_level("ERROR", logger="paypal_invoice_steward"):
+        reply = client.post("/api/chat", json={"message": "hi"})
+    assert reply.status_code == 502
+    assert "LEAK_TEST_SECRET" not in reply.text
+    assert "LEAK_TEST_SECRET" not in caplog.text

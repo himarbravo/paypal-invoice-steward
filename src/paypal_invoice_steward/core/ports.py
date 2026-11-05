@@ -30,6 +30,14 @@ class PayPalUncertain(Exception):
     """We do not know whether the action happened."""
 
 
+def safe_paypal_error(error: PayPalError) -> str:
+    """Summarize an upstream rejection without echoing its untrusted message."""
+    code = error.status_code
+    if isinstance(code, int) and 400 <= code <= 599:
+        return f"PayPal rejected the request (HTTP {code})."
+    return "PayPal rejected the request."
+
+
 class PayPalPort(Protocol):
     """The small slice of PayPal Invoicing that Invoice Steward uses."""
 

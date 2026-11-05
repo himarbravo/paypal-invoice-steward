@@ -2,6 +2,8 @@ import threading
 
 import pytest
 
+from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
 from paypal_invoice_steward.core.proposals import (
     Conflict,
     HashMismatch,
@@ -245,3 +247,52 @@ def test_explicit_sandbox_opt_in_preserves_approval_and_idempotency() -> None:
     second = service.confirm(proposal["id"], proposal["payload_hash"])
     assert first["status"] == second["status"] == "done"
     assert [kind for kind, _ in port.sent_log] == ["invoice"]
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_state"),
+    [
+        (PayPalError("LEAK_TEST_SECRET", 422), "failed"),
+        (PayPalUncertain("LEAK_TEST_SECRET"), "unverified"),
+    ],
+)
+def test_provider_error_text_never_enters_proposal_or_audit_log(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+    expected_state: str,
+) -> None:
+    def broken_create(*args: object) -> Invoice:
+        raise failure
+
+    monkeypatch.setattr(port, "create_invoice_draft", broken_create)
+    proposal = service.propose_invoice(INVOICE)
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert result["status"] == expected_state
+    assert result["error"]
+    assert "LEAK_TEST_SECRET" not in result["error"]
+    record = service.get(proposal["id"])
+    assert "LEAK_TEST_SECRET" not in str(record["events"])
+    assert expected_state in [entry["event"] for entry in record["events"]]
+
+
+@pytest.mark.parametrize(
+    "failure", [PayPalError("LEAK_TEST_SECRET", 403), PayPalUncertain("LEAK_TEST_SECRET")]
+)
+def test_verification_errors_hide_upstream_text(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+) -> None:
+    proposal = service.propose_invoice(INVOICE)
+    assert service.store.transition(proposal["id"], ["pending"], "unverified")
+
+    def broken_lookup(reference: str) -> Invoice | None:
+        raise failure
+
+    monkeypatch.setattr(port, "find_by_reference", broken_lookup)
+    with pytest.raises(Conflict) as exc_info:
+        service.verify(proposal["id"])
+    assert "LEAK_TEST_SECRET" not in str(exc_info.value)
