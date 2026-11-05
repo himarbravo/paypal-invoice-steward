@@ -45,9 +45,7 @@ def test_policy_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.parametrize("key", ["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET"])
-def test_partial_paypal_credentials_fail_closed(
-    key: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_partial_paypal_credentials_fail_closed(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(key, "only-one-half")
     with pytest.raises(RuntimeError, match="must be set together"):
         load_settings()
