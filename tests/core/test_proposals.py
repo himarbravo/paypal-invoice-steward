@@ -6,11 +6,14 @@ from paypal_invoice_steward.core.proposals import (
     Conflict,
     HashMismatch,
     NotFound,
+    Policy,
     PolicyError,
     ProposalService,
+    SandboxWritesDisabled,
 )
+from paypal_invoice_steward.persistence.store import SqliteProposalStore
 
-from .conftest import INVOICE, FakePayPal
+from .conftest import INVOICE, TODAY, FakePayPal
 
 LATE = "INV1"
 
@@ -192,3 +195,53 @@ def test_unknown_invoices_get_no_reminders(service: ProposalService, port: FakeP
     port.invoices["INV1"].status = "unknown"
     with pytest.raises(PolicyError):
         service.propose_reminder("INV1")
+
+
+def test_sandbox_invoice_confirm_is_read_only_by_default() -> None:
+    port = FakePayPal()
+    port.mode = "sandbox"
+    service = ProposalService(port, SqliteProposalStore(":memory:"), today=lambda: TODAY)
+    proposal = service.propose_invoice(INVOICE)
+    before = len(port.invoices)
+    for _ in range(2):
+        with pytest.raises(SandboxWritesDisabled, match="read-only"):
+            service.confirm(proposal["id"], proposal["payload_hash"])
+    assert service.get(proposal["id"])["status"] == "pending"
+    assert [e["event"] for e in service.get(proposal["id"])["events"]] == [
+        "proposed",
+        "refused",
+        "refused",
+    ]
+    assert port.sent_log == []
+    assert len(port.invoices) == before
+
+
+def test_sandbox_reminder_confirm_is_read_only_by_default() -> None:
+    port = FakePayPal()
+    port.mode = "sandbox"
+    service = ProposalService(port, SqliteProposalStore(":memory:"), today=lambda: TODAY)
+    proposal = service.propose_reminder("INV1")
+    assert service.list()[0]["status"] == "pending"
+    with pytest.raises(SandboxWritesDisabled):
+        service.confirm(proposal["id"], proposal["payload_hash"])
+    assert service.get(proposal["id"])["status"] == "pending"
+    assert port.sent_log == []
+
+
+def test_explicit_sandbox_opt_in_preserves_approval_and_idempotency() -> None:
+    port = FakePayPal()
+    port.mode = "sandbox"
+    service = ProposalService(
+        port,
+        SqliteProposalStore(":memory:"),
+        Policy(sandbox_writes_enabled=True),
+        today=lambda: TODAY,
+    )
+    proposal = service.propose_invoice(INVOICE)
+    with pytest.raises(HashMismatch):
+        service.confirm(proposal["id"], "0" * 16)
+    assert port.sent_log == []
+    first = service.confirm(proposal["id"], proposal["payload_hash"])
+    second = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert first["status"] == second["status"] == "done"
+    assert [kind for kind, _ in port.sent_log] == ["invoice"]

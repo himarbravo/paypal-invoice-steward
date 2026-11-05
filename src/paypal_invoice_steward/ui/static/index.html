@@ -460,7 +460,10 @@ $("#toggle-paid").addEventListener("click", () => { showPaid = !showPaid; render
     const health = await api("/api/health");
     const data = health.mode === "demo" ? "Demo data" : "PayPal sandbox";
     const agent = health.agent === "claude" ? "Claude is the assistant" : "offline assistant, add an Anthropic API key to use Claude";
-    $("#status-line").textContent = `${data}, ${agent}.`;
+    const permissions = health.mode === "sandbox"
+      ? (health.outbound_actions_enabled ? "approved sandbox sends enabled" : "read-only: outbound sends blocked")
+      : "simulated actions only";
+    $("#status-line").textContent = `${data}, ${agent}, ${permissions}.`;
     if (health.mode === "demo") {
       $("#demo").hidden = false;
       $("#fail-mode").addEventListener("change", (e) =>

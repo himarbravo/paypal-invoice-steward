@@ -45,6 +45,7 @@ class Policy:
 
     max_invoice_amount: float = 10_000.0
     reminder_cooldown_days: int = 3
+    sandbox_writes_enabled: bool = False
 
 
 class ProposalError(Exception):
@@ -65,6 +66,10 @@ class Conflict(ProposalError):
 
 class HashMismatch(Conflict):
     pass
+
+
+class SandboxWritesDisabled(ProposalError):
+    status_code = 403
 
 
 def payload_hash(kind: str, payload: JSON) -> str:
@@ -254,6 +259,12 @@ class ProposalService:
             raise Conflict(
                 "The outcome of this reminder is unknown. Check PayPal, then create a new "
                 "reminder if the customer did not get it."
+            )
+        if self.port.mode == "sandbox" and not self.policy.sandbox_writes_enabled:
+            self.store.log(proposal_id, "refused", "sandbox outbound actions disabled")
+            raise SandboxWritesDisabled(
+                "PayPal sandbox is read-only. Set STEWARD_SANDBOX_WRITES=enabled "
+                "to permit approved outbound actions."
             )
         if not self.store.transition(proposal_id, [PENDING, UNVERIFIED], EXECUTING):
             current = self.store.get(proposal_id)

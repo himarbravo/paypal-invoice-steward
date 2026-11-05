@@ -38,6 +38,8 @@ Demo mode uses a built-in fake PayPal with five customers and 23 invoices, so ev
 
 The PayPal client only accepts `https://api-m.sandbox.paypal.com` (an optional trailing slash is allowed), never a hostname that merely contains `sandbox`. Incomplete credentials or an unrecognized `STEWARD_MODE` cause startup to fail instead of silently showing fake data. The MVP connects to one merchant's own sandbox app credentials; third-party merchant onboarding and verified merchant identity/scopes are not yet implemented.
 
+**Sandbox starts read-only even when credentials are configured.** You can inspect invoices and prepare proposals, but confirming an invoice or reminder returns HTTP 403 and leaves the proposal pending. To demonstrate real sandbox API sends, explicitly set `STEWARD_SANDBOX_WRITES=enabled` in your **uncommitted** `.env` and restart the app. Only the exact value `enabled` opts in; `yes`, `1` and `true` are rejected. The interface shows whether approved sends are enabled. This is a server-side emergency/offline guard, **not authentication**: use only with your own single merchant's sandbox credentials on localhost, and disable it again when finished. Demo mode remains simulated and is not proof of PayPal integration.
+
 ## Hackathon demo access boundary
 
 **This release has no user login. Run it only on your own computer.** The supported
