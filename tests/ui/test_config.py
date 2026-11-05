@@ -115,7 +115,6 @@ def test_sandbox_write_opt_in_is_invalid_in_demo_mode(
         load_settings()
 
 
-
 def test_optional_paypal_sandbox_app_pin_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
