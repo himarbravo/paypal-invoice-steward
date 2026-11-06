@@ -122,7 +122,9 @@ def test_forecast_does_not_quote_face_amount_when_paypal_due_is_missing() -> Non
         forecast([inv], TODAY, sims=100)
 
 
-@pytest.mark.parametrize("provider_status", ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED"])
+@pytest.mark.parametrize(
+    "provider_status", ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED"]
+)
 def test_refund_requires_reconciliation_even_if_other_invoices_are_open(
     provider_status: str,
 ) -> None:
