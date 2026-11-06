@@ -281,9 +281,13 @@ class SandboxPayPal:
                 raise InvoiceInventoryIncomplete("Invoice list pagination metadata is invalid.")
             if expected_pages is None:
                 if pages > MAX_INVOICE_PAGES or count > MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE:
-                    raise InvoiceInventoryIncomplete("Invoice inventory exceeds the supported page limit.")
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice inventory exceeds the supported page limit."
+                    )
                 if (pages == 0 and count != 0) or (count == 0 and pages > 1):
-                    raise InvoiceInventoryIncomplete("Invoice list has inconsistent empty-page metadata.")
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice list has inconsistent empty-page metadata."
+                    )
                 if pages > 0 and count > pages * INVOICE_PAGE_SIZE:
                     raise InvoiceInventoryIncomplete("Invoice count cannot fit reported pages.")
                 expected_pages, expected_items = pages, count
@@ -303,10 +307,14 @@ class SandboxPayPal:
                 try:
                     invoices.append(normalize_invoice(raw))
                 except (TypeError, ValueError, KeyError, AttributeError):
-                    raise InvoiceInventoryIncomplete("Invoice list record cannot be parsed.") from None
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice list record cannot be parsed."
+                    ) from None
             if pages == 0 or page == pages:
                 if len(invoices) != count:
-                    raise InvoiceInventoryIncomplete("Invoice count differs from the declared total.")
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice count differs from the declared total."
+                    )
                 return invoices
             page += 1
 
