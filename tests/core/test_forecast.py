@@ -3,7 +3,11 @@ from datetime import date, timedelta
 import pytest
 
 from paypal_invoice_steward.core.forecast import forecast, payment_habits
-from paypal_invoice_steward.core.models import BalanceUnverified, Invoice
+from paypal_invoice_steward.core.models import (
+    BalanceUnverified,
+    Invoice,
+    RefundReconciliationRequired,
+)
 
 TODAY = date(2026, 10, 29)
 
@@ -116,3 +120,17 @@ def test_forecast_does_not_quote_face_amount_when_paypal_due_is_missing() -> Non
     inv.balance_source = "unverified"
     with pytest.raises(BalanceUnverified):
         forecast([inv], TODAY, sims=100)
+
+
+@pytest.mark.parametrize("provider_status", ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED"])
+def test_refund_requires_reconciliation_even_if_other_invoices_are_open(
+    provider_status: str,
+) -> None:
+    good = _open(1, "Current", 450, -10)
+    refund = _paid(2, "Historical", 0)
+    refund.status = "refund_review"
+    refund.provider_status = provider_status
+    refund.balance_source = "paypal_due_amount"
+    refund.remaining_amount = 150.0
+    with pytest.raises(RefundReconciliationRequired):
+        forecast([good, refund], TODAY, sims=10)
