@@ -223,8 +223,11 @@ function slipDetails(p) {
     ];
   }
   return [
-    h("dl", {}, h("dt", {}, "Invoice"), h("dd", {}, d.invoice_number)),
+    h("dl", {}, h("dt", {}, "Invoice"), h("dd", {}, d.invoice_number),
+      h("dt", {}, "Recipient"), h("dd", {}, d.expected_customer_email || "Review a new proposal"),
+      h("dt", {}, "Balance"), h("dd", {}, d.expected_balance == null ? "Unverified" : money(d.expected_balance, d.expected_currency, 2))),
     h("p", { class: "note" }, d.note),
+    d.delivery_notice ? h("p", { class: "note" }, d.delivery_notice) : null,
   ];
 }
 

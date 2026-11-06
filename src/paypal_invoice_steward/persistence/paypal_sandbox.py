@@ -514,7 +514,11 @@ class SandboxPayPal:
         self._request(
             "POST",
             f"/v2/invoicing/invoices/{invoice_id}/send",
-            json={"send_to_recipient": True, "send_to_invoicer": False},
+            json={
+                "send_to_recipient": True,
+                "send_to_invoicer": False,
+                "additional_recipients": [],
+            },
         )
         invoice = self.get_invoice(invoice_id)
         if invoice is None:
@@ -526,5 +530,10 @@ class SandboxPayPal:
         self._request(
             "POST",
             f"/v2/invoicing/invoices/{invoice_id}/remind",
-            json={"subject": "Payment reminder", "note": note, "send_to_invoicer": False},
+            # PayPal ignores custom subject/note; explicit empty CC avoids inherited copies.
+            json={
+                "send_to_recipient": True,
+                "send_to_invoicer": False,
+                "additional_recipients": [],
+            },
         )

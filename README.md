@@ -60,6 +60,8 @@ public repository, public video or test fixtures.
 
 ## Safety model
 
+**Sandbox reminders use PayPal-generated email content.** Custom notes are unsupported; the approval card explains this and warns that the local cooldown does not control PayPal automatic reminders or other contact. Send/remind requests explicitly request no additional CC recipients. Scheduled and payment-pending invoices cannot be reminded. See [external reminder policy](docs/external-reminder-policy.md) for operator checks and the provider verification still required.
+
 | Risk | What prevents it |
 |------|------------------|
 | The model sends something it should not | The agent's tools only read and *propose*. A test checks that no tool can send, confirm, pay, cancel or delete. |
