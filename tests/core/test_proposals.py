@@ -1,5 +1,6 @@
 import threading
 from copy import deepcopy
+from datetime import timedelta
 
 import pytest
 
@@ -20,6 +21,112 @@ from paypal_invoice_steward.persistence.store import SqliteProposalStore
 from .conftest import INVOICE, TODAY, FakePayPal
 
 LATE = "INV1"
+
+
+@pytest.mark.parametrize(
+    "status,raw",
+    [
+        ("open", "SENT"),
+        ("open", "UNPAID"),
+        ("open", "PARTIALLY_PAID"),
+        ("paid", "PAID"),
+        ("paid", "MARKED_AS_PAID"),
+    ],
+)
+def test_matching_provider_invoice_is_recovered_without_resending(
+    service: ProposalService,
+    port: FakePayPal,
+    status: str,
+    raw: str,
+) -> None:
+    p = service.propose_invoice(INVOICE)
+    invoice = port.create_invoice_draft(p["payload"], p["reference"])
+    invoice.status, invoice.provider_status = status, raw
+    invoice.balance_source = "paypal_due_amount"
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "done"
+    assert port.sent_log == []
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("customer_email", "wrong@example.com"),
+        ("customer_name", "Other customer"),
+        ("currency", "USD"),
+        ("amount", 1.0),
+        ("amount", float("nan")),
+        ("number", "OTHER"),
+        ("due", TODAY + timedelta(days=99)),
+    ],
+)
+def test_changed_invoice_readback_never_sends_or_verifies(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    value: object,
+) -> None:
+    p = service.propose_invoice(INVOICE)
+    invoice = port.create_invoice_draft(p["payload"], p["reference"])
+    setattr(invoice, field, value)
+    monkeypatch.setattr(port, "find_by_reference", lambda _: invoice)
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert port.sent_log == []
+    invoice.status = "open"
+    with pytest.raises(Conflict):
+        service.verify(p["id"])
+    assert service.get(p["id"])["status"] == "unverified"
+    assert port.sent_log == []
+
+
+@pytest.mark.parametrize(
+    "status,raw",
+    [
+        ("draft", "DRAFT"),
+        ("cancelled", "CANCELLED"),
+        ("refund_review", "REFUNDED"),
+        ("unknown", "NEW_STATE"),
+        ("open", "SCHEDULED"),
+        ("open", "PAYMENT_PENDING"),
+    ],
+)
+def test_unconfirmed_readback_is_never_reported_as_sent(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+    raw: str,
+) -> None:
+    p = service.propose_invoice(INVOICE)
+    original = port.send_invoice
+
+    def send(invoice_id: str) -> Invoice:
+        invoice = original(invoice_id)
+        invoice.status, invoice.provider_status = status, raw
+        return invoice
+
+    monkeypatch.setattr(port, "send_invoice", send)
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert service.verify(p["id"])["status"] == "unverified"
+    assert len(port.sent_log) == 1
+
+
+def test_wrong_invoice_after_send_is_uncertain(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    p = service.propose_invoice(INVOICE)
+    original = port.send_invoice
+
+    def send(invoice_id: str) -> Invoice:
+        invoice = deepcopy(original(invoice_id))
+        invoice.id = "ANOTHER"
+        return invoice
+
+    monkeypatch.setattr(port, "send_invoice", send)
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert len(port.sent_log) == 1
 
 
 @pytest.mark.parametrize("field", ["quantity", "unit_price"])

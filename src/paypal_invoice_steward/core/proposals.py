@@ -22,9 +22,9 @@ import re
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
-from .models import JSON, BalanceUnverified, invoice_total
+from .models import JSON, BalanceUnverified, Invoice, invoice_total
 from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore, safe_paypal_error
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -337,6 +337,36 @@ class ProposalService:
             self.store.log(proposal_id, "done", "")
         return self._public(self._load(proposal_id))
 
+    @staticmethod
+    def _check_invoice_readback(proposal: JSON, invoice: Invoice) -> None:
+        """Check normalized approved fields; full line-item/note equivalence is separate."""
+        spec = proposal["payload"]
+        if (
+            invoice.number != proposal["reference"]
+            or invoice.customer_email != spec["customer_email"]
+            or invoice.customer_name != spec["customer_name"]
+            or invoice.currency != spec["currency"]
+            or not math.isfinite(invoice.amount)
+            or invoice.amount != invoice_total(spec)
+            or invoice.due != invoice.issued + timedelta(days=spec["due_days"])
+        ):
+            raise PayPalUncertain("PayPal invoice differs from the approved details.")
+
+    @staticmethod
+    def _invoice_is_sent(invoice: Invoice) -> bool:
+        if invoice.status not in ("open", "paid"):
+            return False
+        if invoice.provider_status is None:
+            return invoice.balance_source == "synthetic"
+        return invoice.provider_status in {
+            "SENT",
+            "UNPAID",
+            "PARTIALLY_PAID",
+            "PAID",
+            "MARKED_AS_PAID",
+            "PAID_EXTERNAL",
+        }
+
     def _execute(self, proposal: JSON) -> JSON:
         today = self.today()
         if proposal["kind"] == "invoice":
@@ -344,12 +374,19 @@ class ProposalService:
             invoice = self.port.find_by_reference(proposal["reference"])
             if invoice is None:
                 invoice = self.port.create_invoice_draft(proposal["payload"], proposal["reference"])
+            self._check_invoice_readback(proposal, invoice)
             if invoice.status == "cancelled":
                 raise PayPalError("This invoice already exists in PayPal but was cancelled.")
             if invoice.status == "unknown":
                 raise PayPalUncertain("PayPal reports a status this app does not know.")
             if invoice.status == "draft":
-                invoice = self.port.send_invoice(invoice.id)
+                invoice_id = invoice.id
+                invoice = self.port.send_invoice(invoice_id)
+                if invoice.id != invoice_id:
+                    raise PayPalUncertain("PayPal returned another invoice after send.")
+                self._check_invoice_readback(proposal, invoice)
+            if not self._invoice_is_sent(invoice):
+                raise PayPalUncertain("PayPal has not confirmed a sent or paid invoice.")
             return {"invoice": invoice.to_dict(today)}
         payload = proposal["payload"]
         # The approved text is not safe after a refund, payment or changed balance.
@@ -392,9 +429,11 @@ class ProposalService:
             raise Conflict("Reminders cannot be verified automatically. Check PayPal directly.")
         try:
             invoice = self.port.find_by_reference(proposal["reference"])
+            if invoice is not None:
+                self._check_invoice_readback(proposal, invoice)
         except (PayPalError, PayPalUncertain):
             raise Conflict("Could not check PayPal right now. Verify again later.") from None
-        if invoice is not None and invoice.status in ("open", "paid"):
+        if invoice is not None and self._invoice_is_sent(invoice):
             self.store.transition(
                 proposal_id, [UNVERIFIED], DONE, result={"invoice": invoice.to_dict(self.today())}
             )

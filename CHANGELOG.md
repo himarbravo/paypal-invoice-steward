@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Validate approved invoice read-back fields before send/verification and require confirmed sent/paid state before reporting completion (#114).
 - Reject nonfinite invoice values and recompute stored-payload approval hashes before execution; revalidate legacy invoice policy (#112).
 - Block invoice retries on incomplete or ambiguous reference searches and reread matched invoices before use (#110).
 - Reject unsafe invoice path identifiers and mismatched PayPal read-back identities (#108).
