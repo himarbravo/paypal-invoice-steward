@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.models import BALANCE_UNVERIFIED_MESSAGE, Invoice
 from paypal_invoice_steward.core.ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
@@ -253,3 +253,21 @@ def test_incomplete_inventory_never_reaches_financial_api_or_offline_agent(
         assert response.status_code == 200
         assert response.json()["reply"] == INCOMPLETE_INVENTORY_MESSAGE
         assert response.json()["proposals"] == []
+
+
+def test_sandbox_missing_remaining_balance_blocks_financial_api_and_agent() -> None:
+    port = SandboxTestPort(today=lambda: TODAY)
+    inv = next(item for item in port.list_invoices() if item.status == "open")
+    inv.balance_source = "unverified"
+    inv.remaining_amount = None
+    client = TestClient(
+        create_app(Settings(mode="sandbox", db_path=":memory:"), port=port, today=lambda: TODAY)
+    )
+    reply = client.get("/api/forecast")
+    assert reply.status_code == 503
+    assert reply.json() == {"error": BALANCE_UNVERIFIED_MESSAGE}
+    chat_reply = client.post("/api/chat", json={"message": "What is my cash flow forecast?"})
+    assert chat_reply.status_code == 200
+    assert chat_reply.json()["reply"] == BALANCE_UNVERIFIED_MESSAGE
+    assert chat_reply.json()["proposals"] == []
+    assert port.sent_log == []
