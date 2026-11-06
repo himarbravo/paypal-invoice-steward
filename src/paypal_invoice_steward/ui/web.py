@@ -35,6 +35,7 @@ from ..core.ports import (
 )
 from ..core.proposals import ProposalError, ProposalService
 from ..persistence.anthropic_client import AnthropicClient
+from ..persistence.inventory import ObservedPayPal
 from ..persistence.paypal_demo import DemoPayPal
 from ..persistence.paypal_sandbox import SandboxPayPal
 from ..persistence.store import SqliteProposalStore
@@ -128,6 +129,9 @@ def create_app(
         )
     port = port or build_port(settings, today)
     store = SqliteProposalStore(settings.db_path)
+    backend = port
+    observed = ObservedPayPal(port, store, settings.paypal_client_id or "synthetic")
+    port = observed
     service = ProposalService(port, store, settings.policy, today)
     if agent is None:
         if settings.anthropic_api_key:
@@ -204,7 +208,11 @@ def create_app(
         require_refund_reconciliation_clear(source_invoices)
         rows = [inv.to_dict(now) for inv in source_invoices]
         rows.sort(key=lambda r: (r["status"] != "open", -r["days_overdue"], r["due"]))
-        return {"invoices": rows}
+        return {"invoices": rows, "inventory": observed.inventory_status()}
+
+    @app.get("/api/inventory-status")
+    def inventory_status() -> JSON:
+        return observed.inventory_status()
 
     @app.get("/api/forecast")
     def get_forecast() -> JSON:
@@ -248,11 +256,11 @@ def create_app(
 
     @app.post("/api/demo/fail-next", response_model=None)
     def fail_next(body: FailNextIn) -> JSON | JSONResponse:
-        if not isinstance(port, DemoPayPal):
+        if not isinstance(backend, DemoPayPal):
             return JSONResponse(
                 {"error": "Failure simulation only exists in demo mode."}, status_code=404
             )
-        port.fail_next = body.mode
-        return {"fail_next": port.fail_next}
+        backend.fail_next = body.mode
+        return {"fail_next": backend.fail_next}
 
     return app

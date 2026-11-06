@@ -140,6 +140,7 @@
   </section>
 
   <section class="ledger" aria-label="Your invoices">
+    <p id="inventory-status" role="status">Invoices have not been checked yet.</p>
     <p class="owed" id="owed"><span class="loading">Loading your invoices</span></p>
     <div class="chart-wrap" id="chart-wrap"></div>
     <div class="invoices">
@@ -459,6 +460,14 @@ async function refreshLedger() {
     $("#table").replaceChildren();
     $("#toggle-paid").hidden = true;
   }
+  try {
+    const state = await api("/api/inventory-status");
+    const last = state.last_success_at || "none";
+    const missing = state.missing_ids.length;
+    $("#inventory-status").textContent = `${state.scope}. Last invoice check: ${last}. ` +
+      `${state.stale ? "Stale or unverified" : "Checked at that time"}; ${missing} previously seen invoices missing. ` +
+      "Reload to check again. This does not cover your complete business accounts.";
+  } catch { $("#inventory-status").textContent = "Invoice check history unavailable."; }
 }
 
 $("#toggle-paid").addEventListener("click", () => { showPaid = !showPaid; renderLedger(); });
