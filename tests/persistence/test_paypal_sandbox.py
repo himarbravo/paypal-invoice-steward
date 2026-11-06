@@ -173,9 +173,7 @@ def test_expired_token_is_refreshed_once() -> None:
         calls["n"] += 1
         if calls["n"] == 1:
             return httpx.Response(401)
-        return httpx.Response(
-            200, json={"items": [], "total_pages": 0, "total_items": 0}
-        )
+        return httpx.Response(200, json={"items": [], "total_pages": 0, "total_items": 0})
 
     assert make(token_then(handler)).list_invoices() == []
 
@@ -369,15 +367,12 @@ def test_empty_inventory_requires_consistent_count_metadata(total_pages: int) ->
 def test_full_20_page_limit_is_returned_without_truncation() -> None:
     seen: list[int] = []
     pages = {
-        page: [
-            listed_invoice((page - 1) * INVOICE_PAGE_SIZE + i)
-            for i in range(INVOICE_PAGE_SIZE)
-        ]
+        page: [listed_invoice((page - 1) * INVOICE_PAGE_SIZE + i) for i in range(INVOICE_PAGE_SIZE)]
         for page in range(1, MAX_INVOICE_PAGES + 1)
     }
-    data = make(token_then(inventory_handler(
-        pages, MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE, seen_pages=seen
-    ))).list_invoices()
+    data = make(
+        token_then(inventory_handler(pages, MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE, seen_pages=seen))
+    ).list_invoices()
     assert len(data) == MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE
     assert len({i.id for i in data}) == len(data)
     assert seen == list(range(1, MAX_INVOICE_PAGES + 1))
