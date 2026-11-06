@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -26,6 +27,19 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory)
 def test_demo_mode_without_credentials() -> None:
     settings = load_settings()
     assert settings.mode == "demo" and not settings.llm_enabled
+
+
+def test_loads_dotenv_from_current_working_directory(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text(
+        "PAYPAL_CLIENT_ID=id-from-dotenv\nPAYPAL_CLIENT_SECRET=secret-from-dotenv\n",
+        encoding="utf-8",
+    )
+
+    settings = load_settings()
+
+    assert settings.mode == "sandbox"
+    assert settings.paypal_client_id == "id-from-dotenv"
+    assert settings.paypal_client_secret == "secret-from-dotenv"
 
 
 def test_sandbox_mode_with_credentials(monkeypatch: pytest.MonkeyPatch) -> None:

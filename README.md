@@ -33,7 +33,7 @@ Demo mode uses a built-in fake PayPal with five customers and 23 invoices, so ev
 ## Run it against the PayPal sandbox, with Claude
 
 1. Create a **Sandbox** app in the [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/) (Apps & Credentials) and copy its client ID and secret. Invoicing needs a sandbox **Business** account.
-2. `cp .env.example .env` and fill in `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and, optionally, `ANTHROPIC_API_KEY`.
+2. `cp .env.example .env` and fill in `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and, optionally, `ANTHROPIC_API_KEY`. Run the app from that same directory: it loads only that working directory's `.env`.
 3. `paypal-invoice-steward`
 
 The PayPal client only accepts `https://api-m.sandbox.paypal.com` (an optional trailing slash is allowed), never a hostname that merely contains `sandbox`. Incomplete credentials or an unrecognized `STEWARD_MODE` cause startup to fail instead of silently showing fake data. The MVP connects to one merchant's own sandbox app credentials; third-party merchant onboarding is not implemented. On each new OAuth token, it requires the documented invoicing permission, a Bearer token and an app ID; optional `PAYPAL_APP_ID` checks that application ID. This **does not prove the business account's merchant identity** or establish separate PayPal read/write invoicing scopes. See [sandbox authorization boundary](docs/sandbox-authorization.md).

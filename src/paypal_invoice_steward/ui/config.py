@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -42,7 +43,7 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    load_dotenv()
+    load_dotenv(dotenv_path=Path.cwd() / ".env")
     client_id = os.getenv("PAYPAL_CLIENT_ID") or None
     client_secret = os.getenv("PAYPAL_CLIENT_SECRET") or None
     requested = (os.getenv("STEWARD_MODE") or "").strip().lower()
