@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+import pytest
+
 from paypal_invoice_steward.core.forecast import forecast, payment_habits
 from paypal_invoice_steward.core.models import BalanceUnverified, Invoice
 
