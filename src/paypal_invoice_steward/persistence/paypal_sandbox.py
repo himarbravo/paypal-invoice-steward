@@ -414,20 +414,49 @@ class SandboxPayPal:
         return normalize_invoice(data)
 
     def find_by_reference(self, reference: str) -> Invoice | None:
-        data = (
-            self._request(
-                "POST",
-                "/v2/invoicing/search-invoices",
-                params={"page": 1, "page_size": 10},
-                json={"invoice_number": reference},
-            )
-            or {}
+        data = self._request(
+            "POST",
+            "/v2/invoicing/search-invoices",
+            params={"page": 1, "page_size": 10, "total_required": "true"},
+            json={"invoice_number": reference},
         )
-        for item in data.get("items", []):
-            invoice = normalize_invoice(item)
-            if invoice.number == reference:
-                return invoice
-        return None
+        if data is None:
+            raise PayPalUncertain("Invoice reference search returned no usable response.")
+        items, total, pages = data.get("items"), data.get("total_items"), data.get("total_pages")
+        if (
+            not isinstance(items, list)
+            or type(total) is not int
+            or type(pages) is not int
+            or total != len(items)
+            or not 0 <= total <= 10
+            or pages not in ({0, 1} if total == 0 else {1})
+        ):
+            raise PayPalUncertain("Invoice reference search is incomplete or inconsistent.")
+        matches: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            if not isinstance(item, dict) or not isinstance(item.get("detail"), dict):
+                raise PayPalUncertain("Invoice reference search contains invalid records.")
+            invoice_id = item.get("id")
+            if not isinstance(invoice_id, str):
+                raise PayPalUncertain("Invoice reference search has no usable identity.")
+            try:
+                _validate_invoice_id(invoice_id)
+            except ValueError:
+                raise PayPalUncertain("Invoice reference search has an invalid identity.") from None
+            if invoice_id in seen or not isinstance(item["detail"].get("invoice_number"), str):
+                raise PayPalUncertain("Invoice reference search contains ambiguous records.")
+            seen.add(invoice_id)
+            if item["detail"]["invoice_number"] == reference:
+                matches.append(invoice_id)
+        if len(matches) > 1:
+            raise PayPalUncertain("More than one invoice matches the approved reference.")
+        if not matches:
+            return None
+        invoice = self.get_invoice(matches[0])
+        if invoice is None or invoice.number != reference:
+            raise PayPalUncertain("Invoice reference changed or disappeared during read-back.")
+        return invoice
 
     def create_invoice_draft(self, spec: JSON, reference: str) -> Invoice:
         today = self._today()

@@ -65,7 +65,7 @@ public repository, public video or test fixtures.
 | The model sends something it should not | The agent's tools only read and *propose*. A test checks that no tool can send, confirm, pay, cancel or delete. |
 | You approve one thing and another is sent | Each proposal carries a hash of its content. Confirming requires the hash you reviewed. |
 | Double click or two tabs | Status changes are compare-and-swap in SQLite: exactly one request executes. |
-| Timeout after PayPal already sent | The proposal becomes *unverified*, never *failed*. "Check PayPal" looks the invoice up by its reference (`STW-xxxxxxxx`, used as the invoice number) before anything is retried, so there are no duplicates. |
+| Timeout after PayPal already sent | The proposal becomes *unverified*. Reference lookup requires complete count-consistent search results (at most ten) and rereads a unique match by ID. Incomplete, ambiguous or changed results block retries. Search plus create/send is not atomic and still needs real sandbox verification. |
 | Reminder with an unknown outcome | Never retried automatically; a person checks PayPal first. |
 | Unexpected PayPal status | Shown as unknown, left out of the forecast, no reminders. |
 | Refunded or partially refunded PayPal invoice | Flagged for manual refund reconciliation, **not** mislabeled cancelled. Cash forecast, aging and invoice dashboard totals are unavailable until reconciled. No automatic refund or payment correction. [Approval and endpoint matrix](docs/payment-posting-safety-matrix.md). |
