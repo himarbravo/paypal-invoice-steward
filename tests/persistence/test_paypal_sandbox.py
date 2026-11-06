@@ -4,7 +4,7 @@ from datetime import date
 import httpx
 import pytest
 
-from paypal_invoice_steward.core.models import BalanceUnverified, JSON
+from paypal_invoice_steward.core.models import JSON, BalanceUnverified
 from paypal_invoice_steward.core.ports import (
     InvoiceInventoryIncomplete,
     PayPalError,
