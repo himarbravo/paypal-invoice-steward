@@ -12,12 +12,13 @@ import json
 import os
 import sqlite3
 import threading
+import uuid
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
 
 from ..core.models import JSON
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS proposals (
@@ -43,6 +44,13 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE TABLE IF NOT EXISTS inventory_state (
     source TEXT PRIMARY KEY,
     data TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS contact_holds (
+    invoice_id TEXT PRIMARY KEY,
+    reason TEXT NOT NULL,
+    active INTEGER NOT NULL,
+    version TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 """
 
@@ -135,6 +143,9 @@ class SqliteProposalStore:
                 if current["status"] != "pending":
                     return False
                 invoice_id = current["payload"]["invoice_id"]
+                hold = self.contact_hold(invoice_id)
+                if hold and hold["active"]:
+                    return False
                 for other in self.list(["executing", "unverified", "done"]):
                     if other["kind"] != "reminder":
                         continue
@@ -193,6 +204,42 @@ class SqliteProposalStore:
                 "SELECT data FROM inventory_state WHERE source = ?", (source,)
             ).fetchone()
         return json.loads(row[0]) if row else {"status": "not_read", "missing_ids": []}
+
+    def contact_hold(self, invoice_id: str) -> JSON | None:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT * FROM contact_holds WHERE invoice_id = ?", (invoice_id,)
+            ).fetchone()
+        return {**dict(row), "active": bool(row["active"])} if row else None
+
+    def change_contact_hold(
+        self, invoice_id: str, reason: str | None, expected_version: str | None = None
+    ) -> JSON | None:
+        with self._lock, self._db:
+            self._db.execute("BEGIN IMMEDIATE")
+            current = self.contact_hold(invoice_id)
+            if reason is None:
+                if not current or not current["active"] or current["version"] != expected_version:
+                    return None
+                reason = current["reason"]
+                active = False
+            else:
+                if current and current["active"]:
+                    return current
+                active = True
+            version, now = uuid.uuid4().hex, _now()
+            self._db.execute(
+                "INSERT INTO contact_holds VALUES (?, ?, ?, ?, ?) "
+                "ON CONFLICT(invoice_id) DO UPDATE SET reason = excluded.reason,"
+                " active = excluded.active, version = excluded.version,"
+                " updated_at = excluded.updated_at",
+                (invoice_id, reason, int(active), version, now),
+            )
+            self._db.execute(
+                "INSERT INTO events (proposal_id, event, detail, at) VALUES (?, ?, ?, ?)",
+                (f"hold:{invoice_id}", "hold_set" if active else "hold_released", reason, now),
+            )
+            return self.contact_hold(invoice_id)
 
     def observe_inventory(
         self,

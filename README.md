@@ -64,6 +64,8 @@ public repository, public video or test fixtures.
 
 **Invoice reads are on demand.** The browser shows the last completed page walk and missing-record count. Failed reads return no cached figures; previously observed invoices that disappear block financial totals pending investigation. This app-visible observation is not an atomic snapshot or a merchant ledger. No webhooks or continuous sync are implemented. See [inventory scope and freshness](docs/invoice-inventory-integrity.md).
 
+**Local contact holds:** use the invoice table to hold reminders during a dispute, complaint or contact review. Holds also block pending reminder confirmations, survive restarts and require manual release. They cannot recall requests already in flight or stop PayPal's independent schedules. The model cannot change holds; the local operator handles external escalation.
+
 | Risk | What prevents it |
 |------|------------------|
 | The model sends something it should not | The agent's tools only read and *propose*. A test checks that no tool can send, confirm, pay, cancel or delete. |

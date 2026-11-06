@@ -202,6 +202,10 @@ class ProposalService:
         return self._new_proposal("invoice", spec, summary)
 
     def propose_reminder(self, invoice_id: str, note: str | None = None) -> JSON:
+        hold = self.store.contact_hold(invoice_id)
+        if hold and hold["active"]:
+            self.store.log(f"hold:{invoice_id}", "reminder_blocked", "active local contact hold")
+            raise PolicyError("Invoice has an active local contact hold; reminder blocked.")
         invoice = self.port.get_invoice(str(invoice_id))
         if invoice is None:
             raise PolicyError(f"Invoice '{invoice_id}' does not exist.")
@@ -333,7 +337,8 @@ class ProposalService:
                 return self._public(current)
             self.store.log(proposal_id, "refused", "execution claim or reminder cooldown conflict")
             raise Conflict(
-                "Proposal changed or execution is blocked by another action or reminder cooldown."
+                "Proposal changed or execution is blocked by another action, "
+                "contact hold or cooldown."
             )
 
         self.store.log(proposal_id, "confirmed", f"from {status}")
@@ -453,6 +458,9 @@ class ProposalService:
             raise ReminderPreflightBlocked(
                 "Reminder blocked: outstanding balance changed since approval. Nothing sent."
             )
+        hold = self.store.contact_hold(payload["invoice_id"])
+        if hold and hold["active"]:
+            raise ReminderPreflightBlocked("Reminder blocked by local contact hold. Nothing sent.")
         self.port.send_reminder(payload["invoice_id"], payload["note"])
         return {"invoice_id": payload["invoice_id"], "reminded_on": today.isoformat()}
 

@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from .. import __version__
 from ..core.agent import AgentReply, LLMAgent, OfflineAgent
+from ..core.contact import HOLD_NOTICE, ContactService
 from ..core.forecast import forecast
 from ..core.models import (
     BALANCE_UNVERIFIED_MESSAGE,
@@ -85,6 +86,14 @@ class FailNextIn(BaseModel):
     mode: Literal["timeout_after_send", "reject"] | None = None
 
 
+class HoldIn(BaseModel):
+    reason: Literal["dispute", "complaint", "contact_preference", "other_review"]
+
+
+class ReleaseHoldIn(BaseModel):
+    version: str = Field(min_length=1, max_length=64)
+
+
 class Assistant(Protocol):
     """Anything that answers chat messages: `LLMAgent` or `OfflineAgent`."""
 
@@ -133,6 +142,7 @@ def create_app(
     observed = ObservedPayPal(port, store, settings.paypal_client_id or "synthetic")
     port = observed
     service = ProposalService(port, store, settings.policy, today)
+    contacts = ContactService(store)
     if agent is None:
         if settings.anthropic_api_key:
             agent = LLMAgent(
@@ -206,13 +216,32 @@ def create_app(
         now = today()
         source_invoices = port.list_invoices()
         require_refund_reconciliation_clear(source_invoices)
-        rows = [inv.to_dict(now) for inv in source_invoices]
+        rows = [
+            {**inv.to_dict(now), "contact_hold": store.contact_hold(inv.id)}
+            for inv in source_invoices
+        ]
         rows.sort(key=lambda r: (r["status"] != "open", -r["days_overdue"], r["due"]))
         return {"invoices": rows, "inventory": observed.inventory_status()}
 
     @app.get("/api/inventory-status")
     def inventory_status() -> JSON:
         return observed.inventory_status()
+
+    @app.get("/api/invoices/{invoice_id}/hold")
+    def get_hold(invoice_id: str) -> JSON:
+        return {
+            "hold": store.contact_hold(invoice_id),
+            "events": store.events(f"hold:{invoice_id}"),
+            "notice": HOLD_NOTICE,
+        }
+
+    @app.post("/api/invoices/{invoice_id}/hold")
+    def set_hold(invoice_id: str, body: HoldIn) -> JSON:
+        return contacts.change(invoice_id, body.reason)
+
+    @app.post("/api/invoices/{invoice_id}/hold/release")
+    def release_hold(invoice_id: str, body: ReleaseHoldIn) -> JSON:
+        return contacts.change(invoice_id, None, body.version)
 
     @app.get("/api/forecast")
     def get_forecast() -> JSON:

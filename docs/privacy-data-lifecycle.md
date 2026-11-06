@@ -26,6 +26,8 @@ Data minimization of LLM tool results is **pseudonymization/limited disclosure, 
 
 The same local SQLite file also stores invoice-read timestamps, observed/missing invoice IDs and counts, partitioned by mode and a digest of the app client ID. This journal contains no added customer text or financial payloads; its IDs remain potentially linkable. It follows the same manual cleanup and retention limitations as proposals. No inventory journal is sent to the model.
 
+Local contact holds store the invoice ID, controlled reason, active state, version and timestamp, plus set/release audit events. No dispute narrative or customer correspondence is collected. These records share the same local retention limitations; the app does not adjudicate a dispute or communicate a decision to PayPal.
+
 ## 3. Lifecycles, rights and operational response
 
 **Sandbox hackathon:** keep only fictional data. At the end of judging (while preserving any materials needed by contest rules), stop the app, review any backups/screenshots, delete the local demo SQLite database and temporary materials, and rotate test credentials if exposed. No automated cleanup is currently implemented.

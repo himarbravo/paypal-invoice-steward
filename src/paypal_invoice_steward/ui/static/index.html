@@ -145,6 +145,7 @@
     <div class="chart-wrap" id="chart-wrap"></div>
     <div class="invoices">
       <h2>Invoices</h2>
+      <p class="sub">Local contact holds block reminders from this app. They cannot recall an in-flight request or stop PayPal automatic reminders or other contact. Review those with the account owner.</p>
       <div class="table-scroll" id="table"></div>
       <button class="toggle" id="toggle-paid" type="button" hidden></button>
     </div>
@@ -389,6 +390,36 @@ function renderChart(f) {
   return svg;
 }
 
+function contactControls(invoice) {
+  const hold = invoice.contact_hold;
+  const active = hold && hold.active;
+  let releaseRequested = false;
+  const feedback = h("p", { role: "status" });
+  const reason = h("select", { "aria-label": `Hold reason for ${invoice.number}` },
+    ...["dispute", "complaint", "contact_preference", "other_review"].map((value) =>
+      h("option", { value }, value.replaceAll("_", " "))));
+  const button = h("button", { class: "btn", type: "button", onclick: async () => {
+    if (active && !releaseRequested) {
+      releaseRequested = true;
+      button.textContent = "Confirm release";
+      cancel.hidden = false;
+      feedback.textContent = `Release ${invoice.number} only after checking disputes and external reminders.`;
+      return;
+    }
+    button.disabled = true;
+    try {
+      const path = `/api/invoices/${encodeURIComponent(invoice.id)}/hold${active ? "/release" : ""}`;
+      await api(path, { method: "POST", body: JSON.stringify(active ? { version: hold.version } : { reason: reason.value }) });
+      await refreshLedger();
+    } catch (err) { feedback.textContent = err.message; button.disabled = false; }
+  } }, active ? "Release local hold" : "Hold local reminders");
+  const cancel = h("button", { type: "button", hidden: true, onclick: () => {
+    releaseRequested = false; button.textContent = "Release local hold";
+    feedback.textContent = ""; cancel.hidden = true;
+  } }, "Keep hold");
+  return h("td", {}, active ? h("p", {}, `Held: ${hold.reason.replaceAll("_", " ")}`) : reason, button, cancel, feedback);
+}
+
 function renderLedger() {
   const f = lastForecast;
   const open = lastInvoices.filter((i) => i.status === "open");
@@ -424,7 +455,7 @@ function renderLedger() {
     h("thead", {}, h("tr", {},
       h("th", { scope: "col" }, "Invoice"), h("th", { scope: "col" }, "Customer"),
       h("th", { scope: "col", class: "num" }, "Invoice face"), h("th", { scope: "col" }, "Status"),
-      h("th", { scope: "col", class: "num" }, "Paid within 30 days"))),
+      h("th", { scope: "col", class: "num" }, "Paid within 30 days"), h("th", { scope: "col" }, "Contact hold"))),
     h("tbody", {}, rows.map((i) => {
       const risk = chance.get(i.id);
       let status = h("td", {}, "Draft");
@@ -435,7 +466,7 @@ function renderLedger() {
       return h("tr", { class: i.status === "paid" ? "paid" : "" },
         h("td", {}, i.number), h("td", {}, i.customer_name),
         h("td", { class: "num" }, money(i.amount, i.currency)), status,
-        h("td", { class: "num" }, risk ? h("span", { class: `chance ${risk.risk}` }, `${Math.round(risk.p_paid_30d * 100)}%`) : ""));
+        h("td", { class: "num" }, risk ? h("span", { class: `chance ${risk.risk}` }, `${Math.round(risk.p_paid_30d * 100)}%`) : ""), contactControls(i));
     })));
   $("#table").replaceChildren(table);
   const paidCount = lastInvoices.filter((i) => i.status === "paid").length;
