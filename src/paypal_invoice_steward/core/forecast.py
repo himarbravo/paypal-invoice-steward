@@ -113,6 +113,8 @@ def forecast(
     """Forecast per currency. Returns {currency: result}."""
     habits, (g_mean, g_sd) = payment_habits(invoices)
     open_invoices = [i for i in invoices if i.status == "open"]
+    # Reject the entire forecast if any PayPal residual is absent or invalid.
+    balances = {inv.id: inv.receivable_amount() for inv in open_invoices}
     by_currency: dict[str, list[Invoice]] = defaultdict(list)
     for inv in open_invoices:
         by_currency[inv.currency].append(inv)
@@ -134,9 +136,9 @@ def forecast(
                     continue
                 week = int(pay_in // 7)
                 if week < horizon_weeks:
-                    week_totals[week][s] += inv.amount
+                    week_totals[week][s] += balances[inv.id]
                 else:
-                    later_totals[s] += inv.amount
+                    later_totals[s] += balances[inv.id]
             per_invoice[inv.id] = outcomes
 
         weeks: list[JSON] = []
@@ -172,7 +174,7 @@ def forecast(
                     "id": inv.id,
                     "number": inv.number,
                     "customer": inv.customer_name,
-                    "amount": inv.amount,
+                    "amount": balances[inv.id],
                     "due": inv.due.isoformat(),
                     "days_overdue": inv.days_overdue(today),
                     "p_paid_30d": round(paid_30, 3),
@@ -182,7 +184,7 @@ def forecast(
             )
         rows.sort(key=lambda r: (-{"high": 2, "medium": 1, "low": 0}[r["risk"]], -r["amount"]))
 
-        open_amount = round(sum(i.amount for i in group), 2)
+        open_amount = round(sum(balances[i.id] for i in group), 2)
         results[currency] = {
             "currency": currency,
             "as_of": today.isoformat(),
