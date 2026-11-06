@@ -4,7 +4,7 @@ from datetime import date
 import httpx
 import pytest
 
-from paypal_invoice_steward.core.models import JSON
+from paypal_invoice_steward.core.models import BalanceUnverified, JSON
 from paypal_invoice_steward.core.ports import (
     InvoiceInventoryIncomplete,
     PayPalError,
@@ -466,3 +466,119 @@ def test_network_timeout_on_second_page_never_returns_partial_inventory() -> Non
 
     with pytest.raises(PayPalUncertain):
         make(token_then(handler)).list_invoices()
+
+
+def test_partial_external_payment_keeps_face_separate_from_paypal_due_amount() -> None:
+    raw = {
+        **RAW,
+        "status": "PARTIALLY_PAID",
+        "due_amount": {"currency_code": "EUR", "value": "250.75"},
+        "payments": {
+            "paid_amount": {"currency_code": "EUR", "value": "199.25"},
+            "transactions": [
+                {
+                    "type": "EXTERNAL",
+                    "payment_date": "2026-10-17",
+                    "amount": {"currency_code": "EUR", "value": "199.25"},
+                }
+            ],
+        },
+    }
+    inv = normalize_invoice(raw)
+    assert inv.amount == 450.0
+    assert inv.remaining_amount == 250.75
+    assert inv.balance_source == "paypal_due_amount"
+    assert inv.receivable_amount() == 250.75
+    assert inv.payment_origin == "external"
+    assert inv.status == "open"
+    assert inv.paid is None
+    assert inv.provider_status == "PARTIALLY_PAID"
+
+
+def test_reported_due_amount_is_not_recomputed_or_double_allocated() -> None:
+    transaction = {
+        "type": "PAYPAL", "payment_id": "PAY-123", "payment_date": "2026-10-18",
+        "amount": {"currency_code": "EUR", "value": "100.00"},
+    }
+    inv = normalize_invoice({
+        **RAW,
+        "status": "PARTIALLY_PAID",
+        "due_amount": {"currency_code": "EUR", "value": "350.00"},
+        "payments": {"transactions": [transaction, dict(transaction)]},
+    })
+    assert inv.amount == 450
+    assert inv.remaining_amount == 350
+    assert inv.payment_origin == "ambiguous"
+    assert inv.paid is None
+    assert inv.receivable_amount() == 350
+
+
+def test_paid_without_transaction_date_never_invents_due_date_as_payment_date() -> None:
+    inv = normalize_invoice({**RAW, "status": "PAID"})
+    assert inv.paid is None
+    assert inv.payment_origin == "paypal"
+    assert inv.due == date(2026, 10, 15)
+
+
+@pytest.mark.parametrize(
+    ("status", "payment_type", "expected_origin"),
+    [("PAID", "PAYPAL", "paypal"), ("MARKED_AS_PAID", "EXTERNAL", "external")],
+)
+def test_paid_date_comes_only_from_documented_transaction(
+    status: str, payment_type: str, expected_origin: str
+) -> None:
+    transaction: JSON = {
+        "type": payment_type, "payment_date": "2026-11-02",
+        "amount": {"currency_code": "EUR", "value": "450.00"},
+    }
+    if payment_type == "PAYPAL":
+        transaction["payment_id"] = "PAY-123"
+    inv = normalize_invoice({
+        **RAW, "status": status, "payments": {"transactions": [transaction]}
+    })
+    assert inv.paid == date(2026, 11, 2)
+    assert inv.paid != inv.due
+    assert inv.payment_origin == expected_origin
+
+
+def test_paid_with_partial_or_contradictory_transaction_evidence_has_unknown_date() -> None:
+    paid = normalize_invoice({
+        **RAW,
+        "status": "PAID",
+        "payments": {
+            "transactions": [
+                {"type": "PAYPAL", "payment_id": "PAY-ONE", "payment_date": "2026-10-20"},
+                {"type": "PAYPAL", "payment_id": "PAY-TWO"},
+            ],
+        },
+    })
+    assert paid.paid is None
+    contradictory = normalize_invoice({
+        **RAW,
+        "status": "PAID",
+        "payments": {"transactions": [
+            {"type": "EXTERNAL", "payment_date": "2026-10-20"}
+        ]},
+    })
+    assert contradictory.payment_origin == "ambiguous"
+    assert contradictory.paid is None
+
+
+@pytest.mark.parametrize("bad_due", [
+    None,
+    {"currency_code": "USD", "value": "300.00"},
+    {"currency_code": "EUR", "value": "-1.00"},
+    {"currency_code": "EUR", "value": "NaN"},
+    {"currency_code": "EUR", "value": "100.005"},
+    {"currency_code": "EUR", "value": 100},
+    {"currency_code": "EUR"},
+])
+def test_missing_or_malformed_paypal_balance_never_falls_back_to_face(
+    bad_due: object,
+) -> None:
+    inv = normalize_invoice({**RAW, "due_amount": bad_due})
+    assert inv.amount == 450
+    assert inv.remaining_amount is None
+    assert inv.balance_source == "unverified"
+    with pytest.raises(BalanceUnverified):
+        inv.receivable_amount()
