@@ -23,7 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from .models import BalanceUnverified, JSON, invoice_total
+from .models import JSON, BalanceUnverified, invoice_total
 from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore, safe_paypal_error
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
