@@ -405,6 +405,8 @@ class SandboxPayPal:
             pages = data.get("total_pages")
             count = data.get("total_items")
             items = data.get("items")
+            if items is None and "items" not in data and pages == 0 and count == 0:
+                items = []
             if (
                 type(pages) is not int
                 or type(count) is not int

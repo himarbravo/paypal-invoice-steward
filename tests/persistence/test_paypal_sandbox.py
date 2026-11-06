@@ -689,6 +689,21 @@ def test_empty_inventory_requires_consistent_count_metadata(total_pages: int) ->
     assert make(token_then(handler)).list_invoices() == []
 
 
+def test_empty_inventory_may_omit_items_as_observed_in_sandbox() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"total_items": 0, "total_pages": 0})
+
+    assert make(token_then(handler)).list_invoices() == []
+
+
+def test_missing_items_with_nonempty_totals_fails_closed() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"total_items": 1, "total_pages": 1})
+
+    with pytest.raises(InvoiceInventoryIncomplete, match="pagination metadata"):
+        make(token_then(handler)).list_invoices()
+
+
 def test_full_20_page_limit_is_returned_without_truncation() -> None:
     seen: list[int] = []
     pages = {
