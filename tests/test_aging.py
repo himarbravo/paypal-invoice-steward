@@ -99,7 +99,9 @@ def test_aging_rejects_unverified_or_mixed_balance_sources() -> None:
         receivables_aging([inv, invoice("SYNTH", 31)], TODAY)
 
 
-@pytest.mark.parametrize("provider_status", ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED"])
+@pytest.mark.parametrize(
+    "provider_status", ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED"]
+)
 def test_aging_never_excludes_refunds_silently_from_receivables(
     provider_status: str,
 ) -> None:
