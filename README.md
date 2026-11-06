@@ -75,6 +75,7 @@ public repository, public video or test fixtures.
 | Untrusted PayPal error message contains PII or secrets | API responses, model tool results and proposal/audit errors expose only safe categories and a bounded HTTP code; raw upstream error details are not echoed. |
 | Malicious customer names/notes in PayPal data | The Claude tool boundary receives a restricted numeric/ID-only view of invoices, forecasts and aging, never free-text customer names, email addresses or proposal summaries. Full details remain in the local approval UI; the model still cannot execute actions. |
 | Risky input | Server-side policy: maximum amount, EUR/USD/GBP only, 1 to 90 day terms, reminders only for open invoices that are overdue or due within 3 days, 3-day cooldown. |
+| Invoice ID contains path or URL syntax, or PayPal returns another invoice | Reject malformed IDs before any network request and require the read-back ID to equal the requested ID. This binds a request to one resource; merchant ownership still requires sandbox verification. |
 
 ## Development
 

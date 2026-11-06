@@ -164,6 +164,64 @@ def test_get_invoice_404_returns_none() -> None:
     assert port.get_invoice("nope") is None
 
 
+@pytest.mark.parametrize("operation", ["get_invoice", "send_invoice", "send_reminder"])
+@pytest.mark.parametrize(
+    "invoice_id",
+    [
+        "",
+        "../invoices",
+        "INV/send",
+        "INV?x=1",
+        "INV#fragment",
+        "%2e%2e",
+        "INV\\\\x",
+        "INV\n",
+        " INV",
+        "A" * 81,
+        "https://evil.example",
+        "INVí",
+    ],
+)
+def test_unsafe_invoice_ids_never_reach_network(operation: str, invoice_id: str) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=RAW)
+
+    port = make(handler)
+    args = (invoice_id, "hello") if operation == "send_reminder" else (invoice_id,)
+    with pytest.raises(ValueError, match="Invalid invoice identifier"):
+        getattr(port, operation)(*args)
+    assert requests == []
+
+
+@pytest.mark.parametrize("body", [{}, {**RAW, "id": "OTHER"}, {**RAW, "id": None}])
+def test_read_back_never_accepts_another_invoice(body: JSON) -> None:
+    port = make(token_then(lambda r: httpx.Response(200, json=body)))
+    with pytest.raises(PayPalUncertain, match="identity"):
+        port.get_invoice("INV2-AAAA")
+
+
+def test_valid_invoice_id_targets_exact_resource() -> None:
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        return httpx.Response(200, json=RAW)
+
+    port = make(token_then(handler))
+    assert port.get_invoice("INV2-AAAA").id == "INV2-AAAA"
+    port.send_invoice("INV2-AAAA")
+    port.send_reminder("INV2-AAAA", "hello")
+    assert paths == [
+        "/v2/invoicing/invoices/INV2-AAAA",
+        "/v2/invoicing/invoices/INV2-AAAA/send",
+        "/v2/invoicing/invoices/INV2-AAAA",
+        "/v2/invoicing/invoices/INV2-AAAA/remind",
+    ]
+
+
 def test_find_by_reference_matches_exact_number() -> None:
     port = make(token_then(lambda r: httpx.Response(200, json={"items": [RAW]})))
     assert port.find_by_reference("STW-1").id == "INV2-AAAA"

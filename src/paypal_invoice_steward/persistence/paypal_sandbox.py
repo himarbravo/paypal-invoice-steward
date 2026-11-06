@@ -23,6 +23,14 @@ SANDBOX_URL = "https://api-m.sandbox.paypal.com"
 INVOICING_SCOPE = "https://uri.paypal.com/services/invoicing"
 INVOICE_PAGE_SIZE = 50
 MAX_INVOICE_PAGES = 20  # refuse larger inventories, never truncate them
+_INVOICE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}\Z")
+
+
+def _validate_invoice_id(invoice_id: str) -> None:
+    """Accept one opaque path component, never URL syntax supplied by a tool."""
+    if not isinstance(invoice_id, str) or _INVOICE_ID.fullmatch(invoice_id) is None:
+        raise ValueError("Invalid invoice identifier.")
+
 
 log = logging.getLogger(__name__)
 
@@ -394,13 +402,16 @@ class SandboxPayPal:
             page += 1
 
     def get_invoice(self, invoice_id: str) -> Invoice | None:
+        _validate_invoice_id(invoice_id)
         try:
             data = self._request("GET", f"/v2/invoicing/invoices/{invoice_id}")
         except PayPalError as exc:
             if exc.status_code == 404:
                 return None
             raise
-        return normalize_invoice(data) if data else None
+        if not data or data.get("id") != invoice_id:
+            raise PayPalUncertain("PayPal invoice read-back identity could not be verified.")
+        return normalize_invoice(data)
 
     def find_by_reference(self, reference: str) -> Invoice | None:
         data = (
@@ -470,6 +481,7 @@ class SandboxPayPal:
         return invoice
 
     def send_invoice(self, invoice_id: str) -> Invoice:
+        _validate_invoice_id(invoice_id)
         self._request(
             "POST",
             f"/v2/invoicing/invoices/{invoice_id}/send",
@@ -481,6 +493,7 @@ class SandboxPayPal:
         return invoice
 
     def send_reminder(self, invoice_id: str, note: str) -> None:
+        _validate_invoice_id(invoice_id)
         self._request(
             "POST",
             f"/v2/invoicing/invoices/{invoice_id}/remind",

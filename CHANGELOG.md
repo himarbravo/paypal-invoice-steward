@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Reject unsafe invoice path identifiers and mismatched PayPal read-back identities (#108).
 - Quarantine PayPal refund statuses instead of marking them cancelled; fail closed on unresolved refund totals and revalidate each queued reminder before sending (#106).
 - Separate PayPal invoice face from verified outstanding due_amount, avoid fabricated paid dates, preserve reported payment origin and block financial advice/reminders on missing balances (#104).
 - Reject incomplete or inconsistent PayPal invoice pagination instead of silently truncating after 20 pages; block downstream financial outputs and clear stale browser figures (#102).
