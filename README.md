@@ -79,6 +79,7 @@ public repository, public video or test fixtures.
 | Risky input | Server-side policy: maximum amount, EUR/USD/GBP only, 1 to 90 day terms, reminders only for open invoices that are overdue or due within 3 days, 3-day cooldown. |
 | Invoice ID contains path or URL syntax, or PayPal returns another invoice | Reject malformed IDs before any network request and require the read-back ID to equal the requested ID. This binds a request to one resource; merchant ownership still requires sandbox verification. |
 | Created/recovered invoice differs from approval, or send is not confirmed | Check reference, recipient, name, face amount, currency and due term before sending and verifying. Completion needs a known sent/paid state; scheduled/draft/refund/unknown read-backs stay unverified. Full provider line-item/note equivalence and the read-to-write race remain unresolved. |
+| Missing invoice date, due date, face amount or currency | Stop the read instead of inventing today's date, a due date, an item-sum total or USD. This conservative MVP supports explicit ISO dates and EUR/USD/GBP amounts; other terms/currencies need operator reconciliation. |
 
 ## Development
 

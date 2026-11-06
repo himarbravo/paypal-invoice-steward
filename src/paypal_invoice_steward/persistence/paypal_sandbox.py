@@ -57,6 +57,15 @@ def _day(value: str | None) -> date | None:
         return None
 
 
+def _required_invoice_day(value: Any) -> date:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value) is None:
+        raise PayPalUncertain("PayPal invoice dates are missing or invalid.")
+    result = _day(value)
+    if result is None:
+        raise PayPalUncertain("PayPal invoice dates are missing or invalid.")
+    return result
+
+
 _DECIMAL_2 = re.compile(r"(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?\Z")
 
 
@@ -146,18 +155,20 @@ def normalize_invoice(raw: JSON) -> Invoice:
         log.warning("Unknown PayPal invoice status %r on invoice %s", raw_status, raw.get("id"))
         status = "unknown"
 
-    issued = _day(detail.get("invoice_date")) or date.today()
-    due = _day((detail.get("payment_term") or {}).get("due_date")) or issued
+    issued = _required_invoice_day(detail.get("invoice_date"))
+    due = _required_invoice_day((detail.get("payment_term") or {}).get("due_date"))
+    if due < issued:
+        raise PayPalUncertain("PayPal invoice dates are inconsistent.")
 
-    amount_obj = raw.get("amount") or {}
-    if amount_obj.get("value") is not None:
-        amount = float(amount_obj["value"])
-    else:
-        amount = sum(
-            float(i.get("quantity", 1)) * float((i.get("unit_amount") or {}).get("value", 0))
-            for i in raw.get("items", [])
-        )
-    currency = amount_obj.get("currency_code") or detail.get("currency_code") or "USD"
+    amount_obj = raw.get("amount")
+    if not isinstance(amount_obj, dict) or not isinstance(amount_obj.get("currency_code"), str):
+        raise PayPalUncertain("PayPal invoice face amount or currency is unavailable.")
+    currency = amount_obj["currency_code"]
+    amount = _remaining_due({"due_amount": amount_obj}, currency)
+    if amount is None:
+        raise PayPalUncertain("PayPal invoice face amount is invalid or unsupported.")
+    if detail.get("currency_code") not in (None, currency):
+        raise PayPalUncertain("PayPal invoice currencies are inconsistent.")
 
     recipients = raw.get("primary_recipients") or []
     billing = (recipients[0].get("billing_info") if recipients else None) or {}
