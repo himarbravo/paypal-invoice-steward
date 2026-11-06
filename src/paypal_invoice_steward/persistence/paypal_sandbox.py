@@ -282,7 +282,7 @@ class SandboxPayPal:
             if expected_pages is None:
                 if pages > MAX_INVOICE_PAGES or count > MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE:
                     raise InvoiceInventoryIncomplete("Invoice inventory exceeds the supported page limit.")
-                if (pages == 0 and count != 0) or (count > 0 and pages == 0):
+                if (pages == 0 and count != 0) or (count == 0 and pages > 1):
                     raise InvoiceInventoryIncomplete("Invoice list has inconsistent empty-page metadata.")
                 if pages > 0 and count > pages * INVOICE_PAGE_SIZE:
                     raise InvoiceInventoryIncomplete("Invoice count cannot fit reported pages.")
