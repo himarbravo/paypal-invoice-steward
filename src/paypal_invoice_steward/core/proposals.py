@@ -175,9 +175,6 @@ class ProposalService:
 
     def _new_proposal(self, kind: str, payload: JSON, summary: str) -> JSON:
         digest = payload_hash(kind, payload)
-        for existing in self.store.list([PENDING]):
-            if existing["kind"] == kind and existing["payload_hash"] == digest:
-                return self._public(existing)  # same request again: reuse it
         proposal_id = uuid.uuid4().hex[:12]
         proposal = {
             "id": proposal_id,
@@ -188,6 +185,11 @@ class ProposalService:
             "reference": f"STW-{proposal_id[:8].upper()}",
             "status": PENDING,
         }
+        if kind == "invoice":
+            return self._public(self.store.create_or_reuse_active_invoice(proposal))
+        for existing in self.store.list([PENDING]):
+            if existing["kind"] == kind and existing["payload_hash"] == digest:
+                return self._public(existing)  # same request again: reuse it
         self.store.insert(proposal)
         self.store.log(proposal_id, "proposed", summary)
         return self._public(self._load(proposal_id))

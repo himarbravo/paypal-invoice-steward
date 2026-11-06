@@ -73,6 +73,14 @@ class ProposalStore(Protocol):
 
     def insert(self, proposal: JSON) -> None: ...
 
+    def create_or_reuse_active_invoice(self, proposal: JSON) -> JSON:
+        """Atomically store or return an equivalent active invoice proposal.
+
+        An active invoice is pending, executing, or has an unverified outcome.
+        The returned record includes its durable audit event when newly created.
+        """
+        ...
+
     def get(self, proposal_id: str) -> JSON | None: ...
 
     def list(self, statuses: Iterable[str] | None = None) -> list[JSON]: ...

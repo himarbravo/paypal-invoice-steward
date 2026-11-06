@@ -29,6 +29,8 @@ A reminder proposal stores a reviewed snapshot: invoice ID/number, recipient ema
 
 **Existing pending reminders from older versions** without the reviewed snapshot fail closed rather than silently acquiring approval after an upgrade. No refund/payment DELETE or POST endpoints are added by this change.
 
+Equivalent **invoice** requests reuse one local proposal while its outcome is `pending`, `executing`, or `unverified`, even when separate local SQLite connections request it concurrently. Its PayPal reference and `proposed` audit event are created in the same local transaction. This stops a local duplicate-proposal race; it is not a provider idempotency key, merchant-wide duplicate detector, or a substitute for verified Sandbox read-back.
+
 ## Unresolved acceptance
 
 - No end-to-end merchant sandbox account validation, transaction idempotency ledger, verified external receipt, refund identity and allocation, or accounting-system reconciliation.
