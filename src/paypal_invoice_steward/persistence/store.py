@@ -13,7 +13,7 @@ import os
 import sqlite3
 import threading
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from ..core.models import JSON
 
@@ -113,6 +113,39 @@ class SqliteProposalStore:
                     wanted,
                 ).fetchall()
         return [data for data in map(self._row, rows) if data is not None]
+
+    def claim(self, proposal: JSON, reminder_cutoff: date) -> bool:
+        # BEGIN IMMEDIATE serializes readers that intend to write, including
+        # separate connections/processes; a per-instance lock alone cannot do so.
+        with self._lock, self._db:
+            self._db.execute("BEGIN IMMEDIATE")
+            current = self.get(proposal["id"])
+            if current is None or any(
+                current[key] != proposal[key]
+                for key in ("kind", "payload", "payload_hash", "reference", "status")
+            ):
+                return False
+            if current["status"] not in ("pending", "unverified"):
+                return False
+            if current["kind"] == "reminder":
+                if current["status"] != "pending":
+                    return False
+                invoice_id = current["payload"]["invoice_id"]
+                for other in self.list(["executing", "unverified", "done"]):
+                    if other["kind"] != "reminder":
+                        continue
+                    if other["payload"]["invoice_id"] != invoice_id:
+                        continue
+                    if other["status"] != "done":
+                        return False
+                    if datetime.fromisoformat(other["updated_at"]).date() > reminder_cutoff:
+                        return False
+            self._db.execute(
+                "UPDATE proposals SET status = 'executing', error = NULL, updated_at = ?"
+                " WHERE id = ?",
+                (_now(), proposal["id"]),
+            )
+            return True
 
     def transition(
         self,

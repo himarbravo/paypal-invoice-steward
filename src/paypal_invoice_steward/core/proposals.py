@@ -235,7 +235,7 @@ class ProposalService:
                     "PayPal generates reminder content; custom notes are unsupported."
                 )
             text = PAYPAL_REMINDER_TEXT
-        for other in self.store.list([PENDING, UNVERIFIED, DONE]):
+        for other in self.store.list([PENDING, EXECUTING, UNVERIFIED, DONE]):
             if other["kind"] != "reminder" or other["payload"]["invoice_id"] != invoice.id:
                 continue
             if other["status"] == PENDING:
@@ -245,10 +245,10 @@ class ProposalService:
                     f"A different reminder for {invoice.number} is already waiting for approval. "
                     "Confirm or dismiss it first."
                 )
-            if other["status"] == UNVERIFIED:
+            if other["status"] in (EXECUTING, UNVERIFIED):
                 raise PolicyError(
-                    f"A previous reminder for {invoice.number} has an unknown outcome. "
-                    "Check PayPal before sending another."
+                    f"A previous reminder for {invoice.number} is executing or has an "
+                    "unknown outcome. Check PayPal before sending another."
                 )
             sent_on = datetime.fromisoformat(other["updated_at"]).date()
             if (today - sent_on).days < self.policy.reminder_cooldown_days:
@@ -319,11 +319,22 @@ class ProposalService:
                 "PayPal sandbox is read-only. Set STEWARD_SANDBOX_WRITES=enabled "
                 "to permit approved outbound actions."
             )
-        if not self.store.transition(proposal_id, [PENDING, UNVERIFIED], EXECUTING):
+        cutoff = self.today() - timedelta(days=self.policy.reminder_cooldown_days)
+        if not self.store.claim(proposal, cutoff):
             current = self.store.get(proposal_id)
-            if current and current["status"] == DONE:
+            if (
+                current
+                and current["status"] == DONE
+                and all(
+                    current[key] == proposal[key]
+                    for key in ("kind", "payload", "payload_hash", "reference")
+                )
+            ):
                 return self._public(current)
-            raise Conflict("This proposal is already being executed.")
+            self.store.log(proposal_id, "refused", "execution claim or reminder cooldown conflict")
+            raise Conflict(
+                "Proposal changed or execution is blocked by another action or reminder cooldown."
+            )
 
         self.store.log(proposal_id, "confirmed", f"from {status}")
         try:
