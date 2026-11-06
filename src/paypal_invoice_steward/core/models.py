@@ -10,6 +10,16 @@ JSON = dict[str, Any]
 """A JSON-like object, as sent to the browser or stored in the database."""
 
 
+BALANCE_UNVERIFIED_MESSAGE = (
+    "PayPal remaining invoice balances are unavailable or inconsistent; "
+    "financial figures and reminders are blocked."
+)
+
+
+class BalanceUnverified(ValueError):
+    """The provider has not established a usable outstanding balance."""
+
+
 @dataclass
 class Invoice:
     """An invoice as Invoice Steward sees it, whatever the PayPal backend."""
@@ -24,6 +34,18 @@ class Invoice:
     issued: date
     due: date
     paid: date | None = None
+    remaining_amount: float | None = None
+    balance_source: str = "synthetic"  # unit tests/demo only; PayPal must set this explicitly
+    payment_origin: str = "unknown"  # PayPal-reported, not independently settled
+    provider_status: str | None = None
+
+    def receivable_amount(self) -> float:
+        """Return source-backed residual, never an invoice face-value fallback for PayPal."""
+        if self.balance_source == "synthetic":
+            return self.amount
+        if self.balance_source == "paypal_due_amount" and self.remaining_amount is not None:
+            return self.remaining_amount
+        raise BalanceUnverified(BALANCE_UNVERIFIED_MESSAGE)
 
     def days_overdue(self, today: date) -> int:
         """Days past the due date; 0 unless the invoice is open."""

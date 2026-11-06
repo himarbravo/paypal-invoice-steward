@@ -17,7 +17,7 @@ from typing import Any
 
 from .aging import receivables_aging
 from .forecast import forecast
-from .models import JSON
+from .models import BALANCE_UNVERIFIED_MESSAGE, JSON, BalanceUnverified
 from .ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
@@ -254,6 +254,8 @@ class Toolbox:
             return json.dumps({"error": str(exc)}), True
         except InvoiceInventoryIncomplete:
             return json.dumps({"error": INCOMPLETE_INVENTORY_MESSAGE}), True
+        except BalanceUnverified:
+            return json.dumps({"error": BALANCE_UNVERIFIED_MESSAGE}), True
         except PayPalError as exc:
             return json.dumps({"error": safe_paypal_error(exc)}), True
         except PayPalUncertain:
@@ -274,6 +276,8 @@ class Toolbox:
             wanted = args.get("status", "all")
             rows: list[JSON] = []
             for inv in self.port.list_invoices():
+                # Open amounts exposed as collectible must be verified residuals.
+                balance = inv.receivable_amount() if inv.status == "open" else inv.amount
                 late = inv.days_overdue(today)
                 if wanted == "overdue" and late == 0:
                     continue
@@ -284,7 +288,7 @@ class Toolbox:
                         "id": inv.id,
                         "number": inv.number,
                         "customer": inv.customer_name,
-                        "amount": inv.amount,
+                        "amount": balance,
                         "currency": inv.currency,
                         "status": inv.status,
                         "due": inv.due.isoformat(),
@@ -439,7 +443,7 @@ class OfflineAgent:
     def _forecast(self, toolbox: Toolbox) -> AgentReply:
         content, failed = toolbox.run("get_cash_flow_forecast", {})
         if failed:
-            return AgentReply(INCOMPLETE_INVENTORY_MESSAGE)
+            return AgentReply(json.loads(content)["error"])
         data = json.loads(content)
         if "message" in data:
             return AgentReply(data["message"])
@@ -462,7 +466,7 @@ class OfflineAgent:
     def _overdue(self, toolbox: Toolbox) -> AgentReply:
         content, failed = toolbox.run("list_invoices", {"status": "overdue"})
         if failed:
-            return AgentReply(INCOMPLETE_INVENTORY_MESSAGE)
+            return AgentReply(json.loads(content)["error"])
         data = json.loads(content)
         if not data["invoices"]:
             return AgentReply("No invoices are overdue.")
@@ -477,7 +481,7 @@ class OfflineAgent:
     def _reminders(self, toolbox: Toolbox, user_text: str) -> AgentReply:
         content, failed = toolbox.run("list_invoices", {"status": "open"})
         if failed:
-            return AgentReply(INCOMPLETE_INVENTORY_MESSAGE)
+            return AgentReply(json.loads(content)["error"])
         invoices = json.loads(content)["invoices"]
         wanted = {m.upper() for m in self._NUMBER.findall(user_text)}
         targets = (

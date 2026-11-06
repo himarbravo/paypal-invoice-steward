@@ -393,7 +393,7 @@ function renderLedger() {
     owed.replaceChildren("Nothing is waiting to be paid. Ask the assistant to prepare an invoice.");
   } else {
     const cur = f ? f.currency : open[0].currency;
-    const total = open.reduce((s, i) => s + i.amount, 0);
+    const total = open.reduce((s, i) => s + (i.balance_source === "paypal_due_amount" ? i.remaining_amount : i.amount), 0);
     const parts = [
       h("strong", {}, money(total, cur)), ` is owed across ${open.length} invoice${open.length === 1 ? "" : "s"}.`,
     ];
@@ -419,7 +419,7 @@ function renderLedger() {
     h("caption", { class: "sr-only" }, "Invoices"),
     h("thead", {}, h("tr", {},
       h("th", { scope: "col" }, "Invoice"), h("th", { scope: "col" }, "Customer"),
-      h("th", { scope: "col", class: "num" }, "Amount"), h("th", { scope: "col" }, "Status"),
+      h("th", { scope: "col", class: "num" }, "Invoice face"), h("th", { scope: "col" }, "Status"),
       h("th", { scope: "col", class: "num" }, "Paid within 30 days"))),
     h("tbody", {}, rows.map((i) => {
       const risk = chance.get(i.id);

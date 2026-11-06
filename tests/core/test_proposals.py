@@ -296,3 +296,30 @@ def test_verification_errors_hide_upstream_text(
     with pytest.raises(Conflict) as exc_info:
         service.verify(proposal["id"])
     assert "LEAK_TEST_SECRET" not in str(exc_info.value)
+
+
+def test_reminder_mentions_verified_paypal_residual_not_invoice_face(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    inv = port.invoices["INV1"]
+    inv.amount = 450.0
+    inv.remaining_amount = 250.75
+    inv.balance_source = "paypal_due_amount"
+    reminder = service.propose_reminder("INV1")
+    assert "250.75" in reminder["summary"]
+    assert "450.00" not in reminder["summary"]
+    assert "250.75" in reminder["payload"]["note"]
+    assert port.sent_log == []
+
+
+@pytest.mark.parametrize("remaining", [None, 0.0])
+def test_reminder_refuses_unknown_or_zero_paypal_due_without_sending(
+    service: ProposalService, port: FakePayPal, remaining: float | None
+) -> None:
+    inv = port.invoices["INV1"]
+    inv.balance_source = "unverified" if remaining is None else "paypal_due_amount"
+    inv.remaining_amount = remaining
+    with pytest.raises(PolicyError, match="unverified|no confirmed balance"):
+        service.propose_reminder("INV1")
+    assert port.sent_log == []
+    assert service.list() == []

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 import time
 from collections.abc import Callable
 from datetime import date, timedelta
@@ -41,12 +42,80 @@ _DRAFT = {"DRAFT"}
 
 
 def _day(value: str | None) -> date | None:
-    if not value:
+    if not isinstance(value, str) or not value:
         return None
     try:
         return date.fromisoformat(value[:10])
     except ValueError:
         return None
+
+
+_DECIMAL_2 = re.compile(r"(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?\Z")
+
+
+def _remaining_due(raw: JSON, currency: str) -> float | None:
+    """Use the provider's due_amount, never an inferred face-minus-payments sum."""
+    due = raw.get("due_amount")
+    if not isinstance(due, dict) or due.get("currency_code") != currency:
+        return None
+    value = due.get("value")
+    if currency not in {"EUR", "USD", "GBP"} or not isinstance(value, str):
+        return None
+    if len(value) > 32 or _DECIMAL_2.fullmatch(value) is None:
+        return None
+    result = float(value)
+    return result if math.isfinite(result) else None
+
+
+def _payment_provenance(raw: JSON, status: str) -> tuple[str, date | None]:
+    """Identify PayPal-reported origin; missing or duplicated details stay uncertain."""
+    payments = raw.get("payments")
+    if payments is None:
+        transactions: list[Any] = []
+    elif isinstance(payments, dict) and isinstance(payments.get("transactions", []), list):
+        transactions = payments.get("transactions", [])
+    else:
+        return "unknown", None
+    kinds: set[str] = set()
+    ids: set[str] = set()
+    dates: list[date] = []
+    complete_dates = bool(transactions)
+    for row in transactions:
+        if not isinstance(row, dict) or row.get("type") not in {"PAYPAL", "EXTERNAL"}:
+            return "unknown", None
+        kind = row["type"]
+        kinds.add(kind)
+        payment_id = row.get("payment_id")
+        if kind == "PAYPAL" and not isinstance(payment_id, str):
+            return "ambiguous", None
+        if payment_id is not None:
+            if not isinstance(payment_id, str) or not payment_id or payment_id in ids:
+                return "ambiguous", None
+            ids.add(payment_id)
+        payment_date = _day(row.get("payment_date"))
+        if payment_date is None:
+            complete_dates = False
+        else:
+            dates.append(payment_date)
+    if kinds == {"PAYPAL", "EXTERNAL"}:
+        origin = "mixed"
+    elif kinds == {"PAYPAL"}:
+        origin = "paypal"
+    elif kinds == {"EXTERNAL"}:
+        origin = "external"
+    elif status in {"PAID", "REFUNDED"}:
+        origin = "paypal"
+    elif status in {"MARKED_AS_PAID", "PAID_EXTERNAL", "MARKED_AS_REFUNDED"}:
+        origin = "external"
+    else:
+        origin = "unknown"
+    if status == "PAID" and "EXTERNAL" in kinds:
+        return "ambiguous", None
+    if status in {"MARKED_AS_PAID", "PAID_EXTERNAL"} and "PAYPAL" in kinds:
+        return "ambiguous", None
+    fully_paid = status in {"PAID", "MARKED_AS_PAID", "PAID_EXTERNAL"}
+    paid_on = max(dates) if fully_paid and complete_dates and dates else None
+    return origin, paid_on
 
 
 def normalize_invoice(raw: JSON) -> Invoice:
@@ -88,12 +157,8 @@ def normalize_invoice(raw: JSON) -> Invoice:
     )
     customer_name = billing.get("business_name") or full_name or "Unknown customer"
 
-    paid = None
-    transactions = (raw.get("payments") or {}).get("transactions") or []
-    if status == "paid" and transactions:
-        paid = _day(transactions[-1].get("payment_date"))
-    if status == "paid" and paid is None:
-        paid = due
+    origin, paid = _payment_provenance(raw, raw_status)
+    remaining = _remaining_due(raw, currency)
 
     return Invoice(
         id=str(raw.get("id", "")),
@@ -106,6 +171,10 @@ def normalize_invoice(raw: JSON) -> Invoice:
         issued=issued,
         due=due,
         paid=paid,
+        remaining_amount=remaining,
+        balance_source="paypal_due_amount" if remaining is not None else "unverified",
+        payment_origin=origin,
+        provider_status=raw_status,
     )
 
 
