@@ -112,6 +112,82 @@ def test_normalize() -> None:
     assert normalize_invoice({**RAW, "status": "DRAFT"}).status == "draft"
 
 
+@pytest.mark.parametrize("field", ["issued", "due"])
+@pytest.mark.parametrize("value", [None, "", "invalid", "2026-02-30", "2026-10-01junk", "20261001"])
+def test_provider_dates_are_never_invented(field: str, value: object) -> None:
+    detail = {**RAW["detail"]}
+    if field == "issued":
+        detail["invoice_date"] = value
+    else:
+        detail["payment_term"] = {"due_date": value}
+    with pytest.raises(PayPalUncertain, match="dates"):
+        normalize_invoice({**RAW, "detail": detail})
+
+
+def test_reversed_dates_are_not_used_for_aging() -> None:
+    with pytest.raises(PayPalUncertain, match="dates"):
+        normalize_invoice({**RAW, "detail": {**RAW["detail"], "invoice_date": "2026-10-20"}})
+
+
+@pytest.mark.parametrize(
+    "amount",
+    [
+        None,
+        {},
+        {"value": "20"},
+        {"currency_code": "EUR"},
+        *(
+            {"currency_code": "EUR", "value": value}
+            for value in ["NaN", "Infinity", "-1", "1.999", 10, ""]
+        ),
+        {"currency_code": "JPY", "value": "100"},
+    ],
+)
+def test_missing_face_amount_never_falls_back_to_item_sum_or_usd(amount: object) -> None:
+    raw = {
+        **RAW,
+        "amount": amount,
+        "items": [{"quantity": "1", "unit_amount": {"currency_code": "USD", "value": "999"}}],
+    }
+    with pytest.raises(PayPalUncertain, match="amount"):
+        normalize_invoice(raw)
+
+
+def test_conflicting_currency_is_not_silently_resolved() -> None:
+    with pytest.raises(PayPalUncertain, match="currencies"):
+        normalize_invoice({**RAW, "detail": {**RAW["detail"], "currency_code": "USD"}})
+
+
+def test_invalid_source_fact_blocks_inventory_and_reminder_without_writes() -> None:
+    from paypal_invoice_steward.core.proposals import ProposalService
+    from paypal_invoice_steward.persistence.store import SqliteProposalStore
+
+    requests: list[str] = []
+    bad = {**RAW, "detail": {**RAW["detail"], "payment_term": {}}}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.method)
+        if request.url.path == "/v2/invoicing/invoices":
+            return httpx.Response(
+                200,
+                json={
+                    "items": [RAW, {**bad, "id": "INV2-BAD"}],
+                    "total_items": 2,
+                    "total_pages": 1,
+                },
+            )
+        return httpx.Response(200, json=bad)
+
+    port = make(token_then(handler))
+    with pytest.raises(PayPalUncertain):
+        port.list_invoices()
+    service = ProposalService(port, SqliteProposalStore(":memory:"), today=lambda: TODAY)
+    with pytest.raises(PayPalUncertain):
+        service.propose_reminder("INV2-AAAA")
+    assert service.list() == []
+    assert requests == ["GET", "GET"]
+
+
 def test_create_sends_idempotency_header_and_reads_back() -> None:
     seen: dict[str, str | None] = {}
 
