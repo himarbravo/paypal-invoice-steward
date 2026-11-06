@@ -310,7 +310,6 @@ def test_missing_oauth_response_body_is_rejected_safely() -> None:
         make(handler).list_invoices()
 
 
-
 @pytest.mark.parametrize(
     "provider_status",
     ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED", "REFUNDED_EXTERNAL"],
