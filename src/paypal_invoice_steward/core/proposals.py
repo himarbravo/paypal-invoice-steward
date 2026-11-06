@@ -23,7 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from .models import JSON, invoice_total
+from .models import BalanceUnverified, JSON, invoice_total
 from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore, safe_paypal_error
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -195,6 +195,14 @@ class ProposalService:
                 f"Invoice {invoice.number} is {invoice.status}; "
                 "reminders only apply to open invoices."
             )
+        try:
+            remaining = invoice.receivable_amount()
+        except BalanceUnverified:
+            raise PolicyError(
+                "PayPal remaining balance is unverified; no reminder may be prepared."
+            ) from None
+        if remaining <= 0:
+            raise PolicyError("Invoice has no confirmed balance due; reminder blocked.")
         today = self.today()
         if (invoice.due - today).days > 3:
             raise PolicyError(
@@ -203,7 +211,7 @@ class ProposalService:
             )
         text = (note or "").strip()[:300] or (
             f"Hi {invoice.customer_name}, a friendly reminder that invoice {invoice.number} "
-            f"({_money(invoice.amount)} {invoice.currency}) was due on {invoice.due.isoformat()}. "
+            f"({_money(remaining)} {invoice.currency}) was due on {invoice.due.isoformat()}. "
             "If you have already paid, please ignore this message."
         )
         for other in self.store.list([PENDING, UNVERIFIED, DONE]):
@@ -233,7 +241,7 @@ class ProposalService:
         when = f"{late} days overdue" if late else f"due {invoice.due.isoformat()}"
         summary = (
             f"Send a payment reminder for {invoice.number} to {invoice.customer_name} "
-            f"({_money(invoice.amount)} {invoice.currency}, {when})"
+            f"({_money(remaining)} {invoice.currency}, {when})"
         )
         return self._new_proposal("reminder", payload, summary)
 
