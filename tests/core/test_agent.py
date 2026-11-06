@@ -13,7 +13,12 @@ from paypal_invoice_steward.core.agent import (
     Toolbox,
 )
 from paypal_invoice_steward.core.models import Invoice
-from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
+from paypal_invoice_steward.core.ports import (
+    INCOMPLETE_INVENTORY_MESSAGE,
+    InvoiceInventoryIncomplete,
+    PayPalError,
+    PayPalUncertain,
+)
 from paypal_invoice_steward.core.proposals import ProposalService
 
 from .conftest import TODAY, FakePayPal
@@ -252,3 +257,37 @@ def test_scripted_prompt_injection_cannot_execute_paypal_action(
     assert "INJECT_TEST_SECRET" not in str(model.calls)
     assert port.sent_log == []
     assert service.list() == []
+
+
+@pytest.mark.parametrize(
+    "prompt", ["Remind my overdue customers", "Which invoices are overdue?", "Cash forecast"]
+)
+def test_incomplete_inventory_does_not_propose_or_claim_financial_totals(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    prompt: str,
+) -> None:
+    def broken_list() -> list[Invoice]:
+        raise InvoiceInventoryIncomplete("UPSTREAM_UNTRUSTED_DETAILS")
+
+    monkeypatch.setattr(port, "list_invoices", broken_list)
+    agent = OfflineAgent(service, port, lambda: TODAY)
+    result = agent.run("local", prompt)
+    assert result.text == INCOMPLETE_INVENTORY_MESSAGE
+    assert result.proposal_ids == []
+    assert port.sent_log == []
+    assert service.list() == []
+
+
+def test_incomplete_inventory_tool_result_is_explicit_error_not_partial_data(
+    service: ProposalService, port: FakePayPal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken_list() -> list[Invoice]:
+        raise InvoiceInventoryIncomplete("UPSTREAM_UNTRUSTED_DETAILS")
+
+    monkeypatch.setattr(port, "list_invoices", broken_list)
+    content, is_error = Toolbox(service, port, lambda: TODAY).run("list_invoices", {})
+    assert is_error
+    assert json.loads(content) == {"error": INCOMPLETE_INVENTORY_MESSAGE}
+    assert "UPSTREAM_UNTRUSTED_DETAILS" not in content
