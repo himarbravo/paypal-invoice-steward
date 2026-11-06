@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any
@@ -54,6 +56,7 @@ class Invoice:
     balance_source: str = "synthetic"  # unit tests/demo only; PayPal must set this explicitly
     payment_origin: str = "unknown"  # PayPal-reported, not independently settled
     provider_status: str | None = None
+    content_digest: str | None = None  # normalized lines/note; never exposed to the UI or LLM
 
     def receivable_amount(self) -> float:
         """Return source-backed residual, never an invoice face-value fallback for PayPal."""
@@ -76,6 +79,7 @@ class Invoice:
         data: JSON = {
             key: (value.isoformat() if isinstance(value, date) else value)
             for key, value in asdict(self).items()
+            if key != "content_digest"
         }
         if today is not None:
             data["days_overdue"] = self.days_overdue(today)
@@ -85,3 +89,20 @@ class Invoice:
 def invoice_total(spec: JSON) -> float:
     """Total of an invoice request: sum of quantity times unit price over its items."""
     return round(sum(float(i["quantity"]) * float(i["unit_price"]) for i in spec["items"]), 2)
+
+
+def invoice_content_digest(spec: JSON) -> str:
+    """Digest approved line content without retaining it in public invoice views."""
+    content = {
+        "note": spec.get("note", ""),
+        "items": [
+            {
+                "description": item["description"],
+                "quantity": int(item["quantity"]),
+                "unit_price": f"{float(item['unit_price']):.2f}",
+            }
+            for item in spec["items"]
+        ],
+    }
+    encoded = json.dumps(content, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(encoded.encode()).hexdigest()

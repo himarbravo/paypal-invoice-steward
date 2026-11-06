@@ -11,7 +11,7 @@ import threading
 from collections.abc import Callable
 from datetime import date, timedelta
 
-from ..core.models import JSON, Invoice
+from ..core.models import JSON, Invoice, invoice_content_digest
 from ..core.ports import PayPalError, PayPalUncertain
 
 # name -> (email, typical days paid after the due date, spread in days)
@@ -149,6 +149,7 @@ class DemoPayPal:
                 status="draft",
                 issued=today,
                 due=today + timedelta(days=int(spec["due_days"])),
+                content_digest=invoice_content_digest(spec),
             )
             self._invoices[invoice.id] = invoice
             return invoice

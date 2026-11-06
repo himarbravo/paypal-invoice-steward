@@ -12,11 +12,12 @@ import re
 import time
 from collections.abc import Callable
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
 
-from ..core.models import JSON, Invoice
+from ..core.models import JSON, Invoice, invoice_content_digest
 from ..core.ports import InvoiceInventoryIncomplete, PayPalError, PayPalUncertain
 
 SANDBOX_URL = "https://api-m.sandbox.paypal.com"
@@ -81,6 +82,45 @@ def _remaining_due(raw: JSON, currency: str) -> float | None:
         return None
     result = float(value)
     return result if math.isfinite(result) else None
+
+
+def _provider_content_digest(raw: JSON, currency: str) -> str | None:
+    """Hash only a strict, normalized provider representation for action read-back."""
+    detail = raw.get("detail")
+    items = raw.get("items")
+    if not isinstance(detail, dict) or not isinstance(items, list) or not items:
+        return None
+    note = detail.get("note", "")
+    if not isinstance(note, str):
+        return None
+    normalized: list[JSON] = []
+    for item in items:
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+            return None
+        amount = item.get("unit_amount")
+        quantity = item.get("quantity")
+        if (
+            not isinstance(amount, dict)
+            or amount.get("currency_code") != currency
+            or not isinstance(amount.get("value"), str)
+            or _DECIMAL_2.fullmatch(amount["value"]) is None
+            or not isinstance(quantity, str)
+        ):
+            return None
+        try:
+            units = Decimal(quantity)
+        except InvalidOperation:
+            return None
+        if not units.is_finite() or units != units.to_integral_value() or units < 1:
+            return None
+        normalized.append(
+            {
+                "description": item["name"],
+                "quantity": int(units),
+                "unit_price": float(amount["value"]),
+            }
+        )
+    return invoice_content_digest({"note": note, "items": normalized})
 
 
 def _payment_provenance(raw: JSON, status: str) -> tuple[str, date | None]:
@@ -200,6 +240,7 @@ def normalize_invoice(raw: JSON) -> Invoice:
         ),
         payment_origin=origin,
         provider_status=raw_status,
+        content_digest=_provider_content_digest(raw, currency),
     )
 
 
