@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 from datetime import date
 
@@ -223,9 +224,98 @@ def test_valid_invoice_id_targets_exact_resource() -> None:
 
 
 def test_find_by_reference_matches_exact_number() -> None:
-    port = make(token_then(lambda r: httpx.Response(200, json={"items": [RAW]})))
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            assert request.url.params["total_required"] == "true"
+            return httpx.Response(200, json={"items": [RAW], "total_items": 1, "total_pages": 1})
+        return httpx.Response(200, json=RAW)
+
+    port = make(token_then(handler))
     assert port.find_by_reference("STW-1").id == "INV2-AAAA"
     assert port.find_by_reference("STW-2") is None
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        None,
+        {},
+        {"items": []},
+        {"items": None, "total_items": 0, "total_pages": 0},
+        {"items": [], "total_items": True, "total_pages": 1},
+        {"items": [], "total_items": 1, "total_pages": 1},
+        {"items": [RAW], "total_items": 1, "total_pages": 2},
+        {"items": [RAW, RAW], "total_items": 2, "total_pages": 1},
+        {"items": [RAW, {**RAW, "id": "INV2-OTHER"}], "total_items": 2, "total_pages": 1},
+        *(
+            {"items": [row], "total_items": 1, "total_pages": 1}
+            for row in [None, {}, {**RAW, "id": "../other"}, {**RAW, "detail": {}}]
+        ),
+    ],
+)
+def test_uncertain_search_cannot_be_used_as_permission_to_create(body: object) -> None:
+    from paypal_invoice_steward.core.proposals import Policy, ProposalService
+    from paypal_invoice_steward.persistence.store import SqliteProposalStore
+
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        response = json.loads(json.dumps(body))
+        if isinstance(response, dict) and isinstance(response.get("items"), list):
+            for row in response["items"]:
+                if isinstance(row, dict) and row.get("detail", {}).get("invoice_number") == "STW-1":
+                    row["detail"]["invoice_number"] = json.loads(request.content)["invoice_number"]
+        return httpx.Response(200, json=response)
+
+    service = ProposalService(
+        make(token_then(handler)),
+        SqliteProposalStore(":memory:"),
+        Policy(sandbox_writes_enabled=True),
+        today=lambda: TODAY,
+    )
+    p = service.propose_invoice(
+        {
+            "customer_name": "Synthetic",
+            "customer_email": "a@example.com",
+            "items": [{"description": "Work", "unit_price": 10}],
+        }
+    )
+    for _ in range(2):
+        assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert paths == ["/v2/invoicing/search-invoices"] * 2
+
+
+@pytest.mark.parametrize("pages", [0, 1])
+def test_verified_empty_search_is_absence(pages: int) -> None:
+    port = make(
+        token_then(
+            lambda r: httpx.Response(
+                200, json={"items": [], "total_items": 0, "total_pages": pages}
+            )
+        )
+    )
+    assert port.find_by_reference("STW-1") is None
+
+
+@pytest.mark.parametrize("changed", [True, False])
+def test_reference_search_reads_current_details_and_rejects_drift(changed: bool) -> None:
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        if request.method == "POST":
+            return httpx.Response(200, json={"items": [RAW], "total_items": 1, "total_pages": 1})
+        detail = {**RAW["detail"], "invoice_number": "CHANGED"} if changed else RAW["detail"]
+        return httpx.Response(200, json={**RAW, "status": "PAID", "detail": detail})
+
+    port = make(token_then(handler))
+    if changed:
+        with pytest.raises(PayPalUncertain, match="reference"):
+            port.find_by_reference("STW-1")
+    else:
+        assert port.find_by_reference("STW-1").status == "paid"
+    assert paths == ["/v2/invoicing/search-invoices", "/v2/invoicing/invoices/INV2-AAAA"]
 
 
 def test_expired_token_is_refreshed_once() -> None:
