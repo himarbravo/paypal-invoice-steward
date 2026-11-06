@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from .models import JSON, BalanceUnverified, Invoice, invoice_total
+from .models import JSON, BalanceUnverified, Invoice, invoice_content_digest, invoice_total
 from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore, safe_paypal_error
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -369,7 +369,7 @@ class ProposalService:
 
     @staticmethod
     def _check_invoice_readback(proposal: JSON, invoice: Invoice) -> None:
-        """Check normalized approved fields; full line-item/note equivalence is separate."""
+        """Check all approved normalized fields before sending or recovery reporting."""
         spec = proposal["payload"]
         if (
             invoice.number != proposal["reference"]
@@ -379,6 +379,7 @@ class ProposalService:
             or not math.isfinite(invoice.amount)
             or invoice.amount != invoice_total(spec)
             or invoice.due != invoice.issued + timedelta(days=spec["due_days"])
+            or invoice.content_digest != invoice_content_digest(spec)
         ):
             raise PayPalUncertain("PayPal invoice differs from the approved details.")
 

@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from paypal_invoice_steward.core.models import JSON, Invoice, invoice_total
+from paypal_invoice_steward.core.models import JSON, Invoice, invoice_content_digest, invoice_total
 from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
 from paypal_invoice_steward.core.proposals import ProposalService
 from paypal_invoice_steward.persistence.store import SqliteProposalStore
@@ -75,6 +75,7 @@ class FakePayPal:
             status="draft",
             issued=TODAY,
             due=TODAY + timedelta(days=int(spec["due_days"])),
+            content_digest=invoice_content_digest(spec),
         )
         self.invoices[invoice.id] = invoice
         return invoice

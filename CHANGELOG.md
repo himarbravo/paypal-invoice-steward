@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Verify the provider's ordered line items and note against the approved invoice before sending or reporting recovery as complete (#126).
 - Atomically reserve reminder sends per invoice, enforce cooldown at confirmation across processes/restarts, and reject changed proposal snapshots (#120).
 - Reject missing/invalid provider invoice dates, face amounts and currencies instead of fabricating financial source facts (#118).
 - Disclose PayPal-generated reminder content and external contact limits, request no inherited CC, and block reminders for scheduled/pending-payment invoices (#116).

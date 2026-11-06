@@ -9,6 +9,7 @@ from paypal_invoice_steward.core.models import (
     JSON,
     BalanceUnverified,
     RefundReconciliationRequired,
+    invoice_content_digest,
 )
 from paypal_invoice_steward.core.ports import (
     InvoiceInventoryIncomplete,
@@ -41,10 +42,18 @@ RAW: JSON = {
     "detail": {
         "invoice_number": "STW-1",
         "invoice_date": "2026-10-01",
+        "note": "Approved note",
         "payment_term": {"due_date": "2026-10-15"},
     },
     "amount": {"currency_code": "EUR", "value": "450.00"},
     "primary_recipients": [{"billing_info": {"business_name": "Alba", "email_address": "a@b.co"}}],
+    "items": [
+        {
+            "name": "Logo",
+            "quantity": "1",
+            "unit_amount": {"currency_code": "EUR", "value": "450.00"},
+        }
+    ],
 }
 
 
@@ -110,6 +119,48 @@ def test_normalize() -> None:
     assert normalize_invoice({**RAW, "status": "PAID"}).status == "paid"
     assert normalize_invoice({**RAW, "status": "CANCELLED"}).status == "cancelled"
     assert normalize_invoice({**RAW, "status": "DRAFT"}).status == "draft"
+
+
+def test_normalize_keeps_exact_approved_line_content_out_of_public_invoice() -> None:
+    inv = normalize_invoice(RAW)
+    assert inv.content_digest == invoice_content_digest(
+        {
+            "note": "Approved note",
+            "items": [{"description": "Logo", "quantity": 1, "unit_price": 450}],
+        }
+    )
+    assert "content_digest" not in inv.to_dict()
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        {"detail": {**RAW["detail"], "note": "Substituted"}},
+        {
+            "items": [
+                {
+                    "name": "Different work",
+                    "quantity": "1",
+                    "unit_amount": {"currency_code": "EUR", "value": "450.00"},
+                }
+            ]
+        },
+        {
+            "items": [
+                {
+                    "name": "Logo",
+                    "quantity": "2",
+                    "unit_amount": {"currency_code": "EUR", "value": "225.00"},
+                }
+            ]
+        },
+        {"items": []},
+        {"items": [{"name": "Logo", "quantity": "1", "unit_amount": {}}]},
+    ],
+)
+def test_provider_content_mismatch_or_malformed_shape_has_no_approved_digest(changed: JSON) -> None:
+    inv = normalize_invoice({**RAW, **changed})
+    assert inv.content_digest != normalize_invoice(RAW).content_digest
 
 
 @pytest.mark.parametrize("field", ["issued", "due"])

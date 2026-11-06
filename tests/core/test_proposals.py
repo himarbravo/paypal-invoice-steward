@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 
-from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.models import Invoice, invoice_content_digest
 from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
 from paypal_invoice_steward.core.proposals import (
     Conflict,
@@ -121,6 +121,73 @@ def test_changed_invoice_readback_never_sends_or_verifies(
         service.verify(p["id"])
     assert service.get(p["id"])["status"] == "unverified"
     assert port.sent_log == []
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        {
+            "note": "Substituted note",
+            "items": [{"description": "Logo refresh", "quantity": 1, "unit_price": 450}],
+        },
+        {
+            "note": "",
+            "items": [{"description": "Replacement work", "quantity": 1, "unit_price": 450}],
+        },
+        {
+            "note": "",
+            "items": [{"description": "Logo refresh", "quantity": 2, "unit_price": 225}],
+        },
+        {
+            "note": "",
+            "items": [
+                {"description": "First", "quantity": 1, "unit_price": 200},
+                {"description": "Second", "quantity": 1, "unit_price": 250},
+            ],
+        },
+    ],
+)
+def test_changed_provider_content_with_same_total_never_sends_or_verifies(
+    service: ProposalService, port: FakePayPal, changed: dict[str, object]
+) -> None:
+    p = service.propose_invoice(INVOICE)
+    invoice = port.create_invoice_draft(p["payload"], p["reference"])
+    invoice.content_digest = invoice_content_digest(changed)
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert not port.sent_log
+    invoice.status = "open"
+    with pytest.raises(Conflict):
+        service.verify(p["id"])
+    assert service.get(p["id"])["status"] == "unverified"
+
+
+def test_missing_provider_content_never_sends_or_verifies(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    p = service.propose_invoice(INVOICE)
+    invoice = port.create_invoice_draft(p["payload"], p["reference"])
+    invoice.content_digest = None
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert not port.sent_log
+
+
+def test_reordered_provider_lines_never_send() -> None:
+    spec = {
+        **INVOICE,
+        "items": [
+            {"description": "First", "quantity": 1, "unit_price": 200},
+            {"description": "Second", "quantity": 1, "unit_price": 250},
+        ],
+    }
+    port = FakePayPal()
+    service = ProposalService(port, SqliteProposalStore(":memory:"), today=lambda: TODAY)
+    p = service.propose_invoice(spec)
+    invoice = port.create_invoice_draft(p["payload"], p["reference"])
+    invoice.content_digest = invoice_content_digest(
+        {"note": "", "items": list(reversed(spec["items"]))}
+    )
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "unverified"
+    assert not port.sent_log
 
 
 @pytest.mark.parametrize(
