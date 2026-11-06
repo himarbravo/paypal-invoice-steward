@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import pytest
 
 from paypal_invoice_steward.core.aging import receivables_aging
-from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.models import BalanceUnverified, Invoice
 
 TODAY = date(2026, 11, 5)
 
@@ -71,3 +71,25 @@ def test_currencies_and_excluded_states() -> None:
 def test_reject_nonfinite_amount() -> None:
     with pytest.raises(ValueError):
         receivables_aging([invoice("A", 1, amount=float("nan"))], TODAY)
+
+
+def test_aging_uses_paypal_remaining_balance_not_nominal_invoice() -> None:
+    inv = invoice("PARTIAL", 31, amount=450.0)
+    inv.remaining_amount = 250.75
+    inv.balance_source = "paypal_due_amount"
+    result = receivables_aging([inv], TODAY)
+    assert result["basis"] == "PayPal due_amount residuals"
+    assert result["by_currency"]["EUR"]["total"] == 250.75
+    assert result["invoices"][0]["amount"] == 250.75
+    assert inv.amount == 450.0
+
+
+def test_aging_rejects_unverified_or_mixed_balance_sources() -> None:
+    inv = invoice("PARTIAL", 31, amount=450.0)
+    inv.balance_source = "unverified"
+    with pytest.raises(BalanceUnverified):
+        receivables_aging([inv], TODAY)
+    inv.balance_source = "paypal_due_amount"
+    inv.remaining_amount = 250.0
+    with pytest.raises(BalanceUnverified):
+        receivables_aging([inv, invoice("SYNTH", 31)], TODAY)
