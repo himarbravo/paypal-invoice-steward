@@ -5,7 +5,7 @@
 ## What the implementation verifies
 
 - The adapter calls **GET /v2/invoicing/invoices** with `page=1,2,...`, `page_size=50` and `total_required=true`. The API documentation defines the `total_pages` and `total_items` response fields.
-- It requires both totals to be nonnegative integers on every page, with unchanged values across the read. It rejects malformed `items`, missing/empty invoice IDs, duplicates, impossible counts, and a final unique count that differs from `total_items`.
+- It requires both totals to be nonnegative integers on every page, with unchanged values across the read. Sandbox may omit `items` for an exactly zero/zero inventory; only that omitted-key shape becomes an empty list. It rejects malformed or otherwise missing `items`, missing/empty invoice IDs, duplicates, impossible counts, and a final unique count that differs from `total_items`.
 - A short page **never** means the inventory is complete; the reported page count determines whether another page must be requested.
 - Safety limit: **at most 20 pages × 50 invoices = 1,000**. If the provider declares more, the adapter refuses the operation rather than truncating silently. This is a **product resource limit**, not an official PayPal invoice cap.
 - A missing page, rate limit, authorization failure, network error, provider 5xx, changing totals or malformed metadata **never yields a partial list**. The application does not substitute cached/demo fixtures. For pagination-specific failure, `/api/invoices` and `/api/forecast` return HTTP 503 with an explicit incomplete-inventory warning. Other PayPal errors retain their existing safe handling.
