@@ -306,3 +306,164 @@ def test_missing_oauth_response_body_is_rejected_safely() -> None:
 
 def test_scope_contract_in_test_fixtures_matches_provider_documentation() -> None:
     assert INVOICING_SCOPE in OAUTH_TOKEN["scope"].split()
+
+
+# The tests below use real v2 pagination field names over httpx.MockTransport.
+# No responses are fabricated by the production adapter and no network is used.
+def listed_invoice(n: int) -> JSON:
+    return {
+        **RAW,
+        "id": f"INV2-{n:06d}",
+        "detail": {**RAW["detail"], "invoice_number": f"STW-{n:06d}"},
+    }
+
+
+def inventory_handler(
+    pages: dict[int, list[JSON]],
+    total_items: int,
+    *,
+    total_pages: int | None = None,
+    overrides: dict[int, JSON] | None = None,
+    seen_pages: list[int] | None = None,
+) -> Handler:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v2/invoicing/invoices"
+        assert request.url.params["page_size"] == str(INVOICE_PAGE_SIZE)
+        assert request.url.params["total_required"] == "true"
+        page = int(request.url.params["page"])
+        if seen_pages is not None:
+            seen_pages.append(page)
+        payload: JSON = {
+            "items": pages.get(page, []),
+            "total_items": total_items,
+            "total_pages": len(pages) if total_pages is None else total_pages,
+        }
+        payload.update((overrides or {}).get(page, {}))
+        return httpx.Response(200, json=payload)
+
+    return handler
+
+
+def test_invoice_pages_are_all_read_even_when_first_page_is_short() -> None:
+    seen: list[int] = []
+    handler = inventory_handler(
+        {1: [listed_invoice(1)], 2: [listed_invoice(2)]},
+        total_items=2,
+        seen_pages=seen,
+    )
+    results = make(token_then(handler)).list_invoices()
+    assert [i.id for i in results] == ["INV2-000001", "INV2-000002"]
+    assert seen == [1, 2]
+
+
+@pytest.mark.parametrize("total_pages", [0, 1])
+def test_empty_inventory_requires_consistent_count_metadata(total_pages: int) -> None:
+    handler = inventory_handler({1: []}, 0, total_pages=total_pages)
+    assert make(token_then(handler)).list_invoices() == []
+
+
+def test_full_20_page_limit_is_returned_without_truncation() -> None:
+    seen: list[int] = []
+    pages = {
+        page: [
+            listed_invoice((page - 1) * INVOICE_PAGE_SIZE + i)
+            for i in range(INVOICE_PAGE_SIZE)
+        ]
+        for page in range(1, MAX_INVOICE_PAGES + 1)
+    }
+    data = make(token_then(inventory_handler(
+        pages, MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE, seen_pages=seen
+    ))).list_invoices()
+    assert len(data) == MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE
+    assert len({i.id for i in data}) == len(data)
+    assert seen == list(range(1, MAX_INVOICE_PAGES + 1))
+
+
+def test_inventory_above_page_cap_fails_before_truncation() -> None:
+    seen: list[int] = []
+    handler = inventory_handler(
+        {1: [listed_invoice(1)]},
+        total_items=(MAX_INVOICE_PAGES + 1) * INVOICE_PAGE_SIZE,
+        total_pages=MAX_INVOICE_PAGES + 1,
+        seen_pages=seen,
+    )
+    with pytest.raises(InvoiceInventoryIncomplete, match="page limit"):
+        make(token_then(handler)).list_invoices()
+    assert seen == [1]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"total_items": None},
+        {"total_pages": None},
+        {"total_items": True},
+        {"total_pages": "1"},
+        {"total_items": -1},
+        {"total_pages": -1},
+        {"items": None},
+        {"items": {}},
+        {"total_pages": 0, "total_items": 3},
+    ],
+)
+def test_missing_or_invalid_pagination_metadata_fails_closed(bad: JSON) -> None:
+    handler = inventory_handler({1: []}, 0, overrides={1: bad})
+    with pytest.raises(InvoiceInventoryIncomplete):
+        make(token_then(handler)).list_invoices()
+
+
+def test_second_page_missing_item_fails_instead_of_returning_partial_total() -> None:
+    pages = {1: [listed_invoice(1)], 2: []}
+    with pytest.raises(InvoiceInventoryIncomplete, match="count differs"):
+        make(token_then(inventory_handler(pages, 2))).list_invoices()
+
+
+def test_totals_changing_between_pages_are_not_treated_as_complete() -> None:
+    pages = {1: [listed_invoice(1)], 2: [listed_invoice(2)]}
+    handler = inventory_handler(pages, 2, overrides={2: {"total_items": 3}})
+    with pytest.raises(InvoiceInventoryIncomplete, match="totals changed"):
+        make(token_then(handler)).list_invoices()
+
+
+def test_duplicate_invoice_id_between_pages_fails_closed() -> None:
+    pages = {1: [listed_invoice(1)], 2: [listed_invoice(1)]}
+    with pytest.raises(InvoiceInventoryIncomplete, match="repeated"):
+        make(token_then(inventory_handler(pages, 2))).list_invoices()
+
+
+@pytest.mark.parametrize("bad_row", [None, {"id": ""}, {"id": 23}])
+def test_invalid_invoice_record_fails_closed(bad_row: object) -> None:
+    handler = inventory_handler({1: [bad_row]}, 1)
+    with pytest.raises(InvoiceInventoryIncomplete):
+        make(token_then(handler)).list_invoices()
+
+
+@pytest.mark.parametrize("failure", [429, 503])
+def test_failed_second_page_never_returns_partial_financial_inventory(failure: int) -> None:
+    seen: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params["page"])
+        seen.append(page)
+        if page == 2:
+            return httpx.Response(failure, json={"message": "not available"})
+        return httpx.Response(
+            200, json={"items": [listed_invoice(1)], "total_pages": 2, "total_items": 2}
+        )
+
+    error = PayPalError if failure == 429 else PayPalUncertain
+    with pytest.raises(error):
+        make(token_then(handler)).list_invoices()
+    assert seen == [1, 2]
+
+
+def test_network_timeout_on_second_page_never_returns_partial_inventory() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.params["page"] == "2":
+            raise httpx.ReadTimeout("timed out")
+        return httpx.Response(
+            200, json={"items": [listed_invoice(1)], "total_pages": 2, "total_items": 2}
+        )
+
+    with pytest.raises(PayPalUncertain):
+        make(token_then(handler)).list_invoices()
