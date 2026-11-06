@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..core.agent import AgentReply, LLMAgent, OfflineAgent
 from ..core.forecast import forecast
-from ..core.models import BALANCE_UNVERIFIED_MESSAGE, BalanceUnverified, JSON
+from ..core.models import BALANCE_UNVERIFIED_MESSAGE, JSON, BalanceUnverified
 from ..core.ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
