@@ -17,7 +17,7 @@ import random
 from collections import defaultdict
 from datetime import date, timedelta
 
-from .models import JSON, Invoice
+from .models import JSON, Invoice, require_refund_reconciliation_clear
 
 HORIZON_WEEKS = 8
 SHRINKAGE = 3  # a customer with 3 paid invoices counts as half their own history
@@ -111,6 +111,7 @@ def forecast(
     seed: int = 7,
 ) -> dict[str, JSON]:
     """Forecast per currency. Returns {currency: result}."""
+    require_refund_reconciliation_clear(invoices)
     habits, (g_mean, g_sd) = payment_habits(invoices)
     open_invoices = [i for i in invoices if i.status == "open"]
     # Reject the entire forecast if any PayPal residual is absent or invalid.
