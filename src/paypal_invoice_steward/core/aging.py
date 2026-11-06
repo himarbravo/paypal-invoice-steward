@@ -24,6 +24,16 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
     The Invoice model has no payment allocations or remaining-balance field;
     'amount' is therefore the source-provided amount, NOT a verified residual.
     """
+    # Do not combine synthetic face amounts and PayPal residuals in one report.
+    open_rows = [inv for inv in invoices if inv.status == "open"]
+    basis_kinds = {inv.balance_source for inv in open_rows}
+    if len(basis_kinds) > 1:
+        raise ValueError("Mixed invoice balance sources cannot form a trustworthy aging report.")
+    basis = (
+        "PayPal due_amount residuals"
+        if basis_kinds == {"paypal_due_amount"}
+        else "current open invoice face amounts"
+    )
     totals: dict[str, dict[str, int]] = defaultdict(lambda: {b: 0 for b in BUCKETS})
     rows: list[JSON] = []
     excluded: dict[str, int] = defaultdict(int)
@@ -42,7 +52,7 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
             bucket = "61_90"
         else:
             bucket = "91_plus"
-        cents = _cents(inv.amount)
+        cents = _cents(inv.receivable_amount())
         totals[inv.currency][bucket] += cents
         rows.append(
             {
@@ -59,7 +69,7 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
     rows.sort(key=lambda r: (-r["days_overdue"], r["number"]))
     return {
         "as_of": as_of.isoformat(),
-        "basis": "current open invoice face amounts",
+        "basis": basis,
         "limitations": [
             "Not a historical as-of reconstruction",
             (
