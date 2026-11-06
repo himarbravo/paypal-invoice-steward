@@ -4,7 +4,11 @@ from datetime import date
 import httpx
 import pytest
 
-from paypal_invoice_steward.core.models import JSON, BalanceUnverified
+from paypal_invoice_steward.core.models import (
+    JSON,
+    BalanceUnverified,
+    RefundReconciliationRequired,
+)
 from paypal_invoice_steward.core.ports import (
     InvoiceInventoryIncomplete,
     PayPalError,
@@ -198,10 +202,10 @@ def test_satisfies_the_port() -> None:
         ("PAID_EXTERNAL", "paid"),
         ("CANCELLED", "cancelled"),
         ("AUTO_CANCELLED", "cancelled"),
-        ("REFUNDED", "cancelled"),
-        ("PARTIALLY_REFUNDED", "cancelled"),
-        ("MARKED_AS_REFUNDED", "cancelled"),
-        ("REFUNDED_EXTERNAL", "cancelled"),
+        ("REFUNDED", "refund_review"),
+        ("PARTIALLY_REFUNDED", "refund_review"),
+        ("MARKED_AS_REFUNDED", "refund_review"),
+        ("REFUNDED_EXTERNAL", "refund_review"),
         ("SOMETHING_NEW", "unknown"),
         ("", "unknown"),
     ],
@@ -304,6 +308,37 @@ def test_missing_oauth_response_body_is_rejected_safely() -> None:
 
     with pytest.raises(PayPalError, match="malformed OAuth"):
         make(handler).list_invoices()
+
+
+
+
+@pytest.mark.parametrize(
+    "provider_status",
+    ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED", "REFUNDED_EXTERNAL"],
+)
+def test_refunds_do_not_become_cancelled_even_with_due_amount(
+    provider_status: str,
+) -> None:
+    inv = normalize_invoice(
+        {
+            **RAW,
+            "status": provider_status,
+            "due_amount": {"currency_code": "EUR", "value": "75.00"},
+        }
+    )
+    assert inv.status == "refund_review"
+    assert inv.provider_status == provider_status
+    assert inv.amount == 450.0
+    assert inv.remaining_amount == 75.0
+    assert inv.balance_source == "unverified"
+    assert inv.paid is None
+    with pytest.raises(RefundReconciliationRequired):
+        inv.receivable_amount()
+
+
+def test_cancelled_and_auto_cancelled_are_not_reclassified_as_refunds() -> None:
+    assert normalize_invoice({**RAW, "status": "CANCELLED"}).status == "cancelled"
+    assert normalize_invoice({**RAW, "status": "AUTO_CANCELLED"}).status == "cancelled"
 
 
 def test_scope_contract_in_test_fixtures_matches_provider_documentation() -> None:
