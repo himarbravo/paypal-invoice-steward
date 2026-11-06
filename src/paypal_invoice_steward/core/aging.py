@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from .models import JSON, BalanceUnverified, Invoice
+from .models import JSON, BalanceUnverified, Invoice, require_refund_reconciliation_clear
 
 BUCKETS = ("not_due", "1_30", "31_60", "61_90", "91_plus")
 
@@ -24,6 +24,7 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
     The Invoice model has no payment allocations or remaining-balance field;
     'amount' is therefore the source-provided amount, NOT a verified residual.
     """
+    require_refund_reconciliation_clear(invoices)
     # Do not combine synthetic face amounts and PayPal residuals in one report.
     open_rows = [inv for inv in invoices if inv.status == "open"]
     basis_kinds = {inv.balance_source for inv in open_rows}

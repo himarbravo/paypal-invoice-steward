@@ -323,3 +323,91 @@ def test_reminder_refuses_unknown_or_zero_paypal_due_without_sending(
         service.propose_reminder("INV1")
     assert port.sent_log == []
     assert service.list() == []
+
+
+@pytest.mark.parametrize("new_status", ["refund_review", "paid", "cancelled", "unknown"])
+def test_confirm_refuses_stale_reminder_after_paypal_status_change(
+    service: ProposalService, port: FakePayPal, new_status: str
+) -> None:
+    proposal = service.propose_reminder("INV1")
+    assert proposal["status"] == "pending"
+    port.invoices["INV1"].status = new_status
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert result["status"] == "failed"
+    assert "blocked" in result["error"].lower()
+    assert port.sent_log == []
+    assert "blocked" in [e["event"] for e in service.get(proposal["id"])["events"]]
+    with pytest.raises(Conflict):
+        service.confirm(proposal["id"], proposal["payload_hash"])
+    assert port.sent_log == []
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["remaining", "currency", "due", "email", "invoice_number", "zero"],
+)
+def test_confirm_refuses_reminder_when_approved_financial_snapshot_changes(
+    service: ProposalService, port: FakePayPal, change: str
+) -> None:
+    proposal = service.propose_reminder("INV1")
+    inv = port.invoices["INV1"]
+    if change == "remaining":
+        inv.balance_source = "paypal_due_amount"
+        inv.remaining_amount = inv.amount - 1
+    elif change == "zero":
+        inv.balance_source = "paypal_due_amount"
+        inv.remaining_amount = 0.0
+    elif change == "currency":
+        inv.currency = "USD"
+    elif change == "due":
+        inv.due = inv.due.replace(day=inv.due.day - 1) if inv.due.day > 1 else inv.issued
+    elif change == "email":
+        inv.customer_email = "different@example.com"
+    else:
+        inv.number = "CHANGED-1"
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert result["status"] == "failed"
+    assert "blocked" in result["error"].lower()
+    assert port.sent_log == []
+
+
+def test_confirm_refuses_old_reminder_without_balance_snapshot(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    proposal = service.propose_reminder("INV1")
+    # Simulate a pending proposal persisted before the new preflight contract.
+    stored = service.store.get(proposal["id"])
+    assert stored is not None
+    stored["payload"].pop("expected_balance")
+    from paypal_invoice_steward.core.proposals import ReminderPreflightBlocked
+
+    with pytest.raises(ReminderPreflightBlocked, match="balance changed"):
+        service._execute(stored)
+    assert port.sent_log == []
+
+
+def test_preflight_provider_outage_does_not_send_a_reminder(
+    service: ProposalService, port: FakePayPal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    proposal = service.propose_reminder("INV1")
+
+    def unavailable(invoice_id: str) -> Invoice | None:
+        raise PayPalUncertain("UNTRUSTED_PROVIDER_TEXT")
+
+    monkeypatch.setattr(port, "get_invoice", unavailable)
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert result["status"] == "unverified"
+    assert "UNTRUSTED_PROVIDER_TEXT" not in str(result)
+    assert port.sent_log == []
+
+
+def test_stable_invoice_reminder_is_sent_once_after_preflight(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    proposal = service.propose_reminder("INV1")
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert result["status"] == "done"
+    assert port.sent_log == [("reminder", "INV1")]
+    again = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert again["status"] == "done"
+    assert port.sent_log == [("reminder", "INV1")]

@@ -17,7 +17,14 @@ from typing import Any
 
 from .aging import receivables_aging
 from .forecast import forecast
-from .models import BALANCE_UNVERIFIED_MESSAGE, JSON, BalanceUnverified
+from .models import (
+    BALANCE_UNVERIFIED_MESSAGE,
+    JSON,
+    REFUND_REVIEW_MESSAGE,
+    BalanceUnverified,
+    RefundReconciliationRequired,
+    require_refund_reconciliation_clear,
+)
 from .ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
@@ -254,6 +261,8 @@ class Toolbox:
             return json.dumps({"error": str(exc)}), True
         except InvoiceInventoryIncomplete:
             return json.dumps({"error": INCOMPLETE_INVENTORY_MESSAGE}), True
+        except RefundReconciliationRequired:
+            return json.dumps({"error": REFUND_REVIEW_MESSAGE}), True
         except BalanceUnverified:
             return json.dumps({"error": BALANCE_UNVERIFIED_MESSAGE}), True
         except PayPalError as exc:
@@ -275,7 +284,9 @@ class Toolbox:
         if name == "list_invoices":
             wanted = args.get("status", "all")
             rows: list[JSON] = []
-            for inv in self.port.list_invoices():
+            invoices = self.port.list_invoices()
+            require_refund_reconciliation_clear(invoices)
+            for inv in invoices:
                 # Open amounts exposed as collectible must be verified residuals.
                 balance = inv.receivable_amount() if inv.status == "open" else inv.amount
                 late = inv.days_overdue(today)

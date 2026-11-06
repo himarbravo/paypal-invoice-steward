@@ -12,7 +12,7 @@ from paypal_invoice_steward.core.agent import (
     OfflineAgent,
     Toolbox,
 )
-from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.models import REFUND_REVIEW_MESSAGE, Invoice
 from paypal_invoice_steward.core.ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
@@ -291,3 +291,35 @@ def test_incomplete_inventory_tool_result_is_explicit_error_not_partial_data(
     assert is_error
     assert json.loads(content) == {"error": INCOMPLETE_INVENTORY_MESSAGE}
     assert "UPSTREAM_UNTRUSTED_DETAILS" not in content
+
+
+def test_toolbox_refund_review_blocks_all_financial_reads_without_partial_totals(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    invoice = port.invoices["INV4"]
+    invoice.status = "refund_review"
+    invoice.provider_status = "PARTIALLY_REFUNDED"
+    invoice.remaining_amount = 200.0
+    invoice.balance_source = "paypal_due_amount"
+    toolbox = Toolbox(service, port, lambda: TODAY)
+    for name in ("list_invoices", "get_cash_flow_forecast", "get_receivables_aging"):
+        content, is_error = toolbox.run(name, {})
+        assert is_error
+        assert json.loads(content) == {"error": REFUND_REVIEW_MESSAGE}
+        assert "200.0" not in content
+    assert toolbox.created == []
+    assert port.sent_log == []
+
+
+def test_offline_agent_cannot_propose_reminders_with_unresolved_refunds(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    port.invoices["INV4"].status = "refund_review"
+    port.invoices["INV4"].provider_status = "REFUNDED"
+    agent = OfflineAgent(service, port, lambda: TODAY)
+    for prompt in ("remind all overdue invoices", "cash flow forecast"):
+        reply = agent.run("session", prompt)
+        assert reply.text == REFUND_REVIEW_MESSAGE
+        assert reply.proposal_ids == []
+    assert service.list() == []
+    assert port.sent_log == []

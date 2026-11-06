@@ -72,6 +72,10 @@ class SandboxWritesDisabled(ProposalError):
     status_code = 403
 
 
+class ReminderPreflightBlocked(ProposalError):
+    """No reminder was sent; its approved invoice snapshot is now unsafe."""
+
+
 def payload_hash(kind: str, payload: JSON) -> str:
     canonical = json.dumps(
         {"kind": kind, "payload": payload},
@@ -236,7 +240,15 @@ class ProposalService:
                     f"wait {self.policy.reminder_cooldown_days} days between reminders."
                 )
 
-        payload = {"invoice_id": invoice.id, "invoice_number": invoice.number, "note": text}
+        payload = {
+            "invoice_id": invoice.id,
+            "invoice_number": invoice.number,
+            "note": text,
+            "expected_balance": remaining,
+            "expected_currency": invoice.currency,
+            "expected_due": invoice.due.isoformat(),
+            "expected_customer_email": invoice.customer_email,
+        }
         late = invoice.days_overdue(today)
         when = f"{late} days overdue" if late else f"due {invoice.due.isoformat()}"
         summary = (
@@ -283,6 +295,10 @@ class ProposalService:
         self.store.log(proposal_id, "confirmed", f"from {status}")
         try:
             result = self._execute(proposal)
+        except ReminderPreflightBlocked as exc:
+            message = str(exc)
+            self.store.transition(proposal_id, [EXECUTING], FAILED, error=message)
+            self.store.log(proposal_id, "blocked", message)
         except PayPalError as exc:
             message = safe_paypal_error(exc)
             self.store.transition(proposal_id, [EXECUTING], FAILED, error=message)
@@ -317,6 +333,32 @@ class ProposalService:
                 invoice = self.port.send_invoice(invoice.id)
             return {"invoice": invoice.to_dict(today)}
         payload = proposal["payload"]
+        # The approved text is not safe after a refund, payment or changed balance.
+        # Preflight runs inside the compare-and-swap execution slot, before any POST.
+        fresh = self.port.get_invoice(payload["invoice_id"])
+        if fresh is None or fresh.status != "open" or fresh.id != payload["invoice_id"]:
+            raise ReminderPreflightBlocked(
+                "Reminder blocked: PayPal invoice is missing or no longer open. Nothing sent."
+            )
+        if (
+            fresh.number != payload.get("invoice_number")
+            or fresh.currency != payload.get("expected_currency")
+            or fresh.due.isoformat() != payload.get("expected_due")
+            or fresh.customer_email != payload.get("expected_customer_email")
+        ):
+            raise ReminderPreflightBlocked(
+                "Reminder blocked: invoice details changed since approval. Nothing sent."
+            )
+        try:
+            remaining = fresh.receivable_amount()
+        except BalanceUnverified:
+            raise ReminderPreflightBlocked(
+                "Reminder blocked: outstanding balance cannot be verified. Nothing sent."
+            ) from None
+        if remaining <= 0 or remaining != payload.get("expected_balance"):
+            raise ReminderPreflightBlocked(
+                "Reminder blocked: outstanding balance changed since approval. Nothing sent."
+            )
         self.port.send_reminder(payload["invoice_id"], payload["note"])
         return {"invoice_id": payload["invoice_id"], "reminded_on": today.isoformat()}
 

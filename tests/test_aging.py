@@ -5,7 +5,11 @@ from datetime import date, timedelta
 import pytest
 
 from paypal_invoice_steward.core.aging import receivables_aging
-from paypal_invoice_steward.core.models import BalanceUnverified, Invoice
+from paypal_invoice_steward.core.models import (
+    BalanceUnverified,
+    Invoice,
+    RefundReconciliationRequired,
+)
 
 TODAY = date(2026, 11, 5)
 
@@ -93,3 +97,18 @@ def test_aging_rejects_unverified_or_mixed_balance_sources() -> None:
     inv.remaining_amount = 250.0
     with pytest.raises(BalanceUnverified):
         receivables_aging([inv, invoice("SYNTH", 31)], TODAY)
+
+
+@pytest.mark.parametrize(
+    "provider_status", ["REFUNDED", "PARTIALLY_REFUNDED", "MARKED_AS_REFUNDED"]
+)
+def test_aging_never_excludes_refunds_silently_from_receivables(
+    provider_status: str,
+) -> None:
+    open_invoice = invoice("OPEN", 14, amount=100.0)
+    refund = invoice("REFUND", 14, status="refund_review", amount=450.0)
+    refund.provider_status = provider_status
+    refund.balance_source = "paypal_due_amount"
+    refund.remaining_amount = 175.0
+    with pytest.raises(RefundReconciliationRequired):
+        receivables_aging([open_invoice, refund], TODAY)

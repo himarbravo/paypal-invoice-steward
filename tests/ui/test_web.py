@@ -4,7 +4,11 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from paypal_invoice_steward.core.models import BALANCE_UNVERIFIED_MESSAGE, Invoice
+from paypal_invoice_steward.core.models import (
+    BALANCE_UNVERIFIED_MESSAGE,
+    REFUND_REVIEW_MESSAGE,
+    Invoice,
+)
 from paypal_invoice_steward.core.ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
@@ -270,4 +274,26 @@ def test_sandbox_missing_remaining_balance_blocks_financial_api_and_agent() -> N
     assert chat_reply.status_code == 200
     assert chat_reply.json()["reply"] == BALANCE_UNVERIFIED_MESSAGE
     assert chat_reply.json()["proposals"] == []
+    assert port.sent_log == []
+
+
+def test_refund_review_blocks_http_inventory_and_forecast_without_false_totals() -> None:
+    port = SandboxTestPort(today=lambda: TODAY)
+    target = next(inv for inv in port.list_invoices() if inv.status == "paid")
+    target.status = "refund_review"
+    target.provider_status = "PARTIALLY_REFUNDED"
+    target.balance_source = "unverified"
+    target.remaining_amount = 400.0
+    client = TestClient(
+        create_app(Settings(mode="sandbox", db_path=":memory:"), port=port, today=lambda: TODAY)
+    )
+    for path in ("/api/invoices", "/api/forecast"):
+        response = client.get(path)
+        assert response.status_code == 503
+        assert response.json() == {"error": REFUND_REVIEW_MESSAGE}
+        assert "forecasts" not in response.text
+    chat_response = client.post("/api/chat", json={"message": "remind all overdue invoices"})
+    assert chat_response.status_code == 200
+    assert chat_response.json()["reply"] == REFUND_REVIEW_MESSAGE
+    assert chat_response.json()["proposals"] == []
     assert port.sent_log == []

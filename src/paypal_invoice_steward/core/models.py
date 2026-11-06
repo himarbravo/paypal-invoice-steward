@@ -20,6 +20,22 @@ class BalanceUnverified(ValueError):
     """The provider has not established a usable outstanding balance."""
 
 
+REFUND_REVIEW_MESSAGE = (
+    "PayPal refund activity needs manual reconciliation; financial totals and reminders "
+    "are unavailable."
+)
+
+
+class RefundReconciliationRequired(BalanceUnverified):
+    """Refunded invoices cannot be classified as cancellations or collectible balances."""
+
+
+def require_refund_reconciliation_clear(invoices: list[Invoice]) -> None:
+    """Do not compute apparently complete merchant figures while refunds are unresolved."""
+    if any(inv.status == "refund_review" for inv in invoices):
+        raise RefundReconciliationRequired(REFUND_REVIEW_MESSAGE)
+
+
 @dataclass
 class Invoice:
     """An invoice as Invoice Steward sees it, whatever the PayPal backend."""
@@ -30,7 +46,7 @@ class Invoice:
     customer_email: str
     amount: float
     currency: str
-    status: str  # draft | open | paid | cancelled | unknown
+    status: str  # draft | open | paid | cancelled | refund_review | unknown
     issued: date
     due: date
     paid: date | None = None
@@ -41,6 +57,8 @@ class Invoice:
 
     def receivable_amount(self) -> float:
         """Return source-backed residual, never an invoice face-value fallback for PayPal."""
+        if self.status == "refund_review":
+            raise RefundReconciliationRequired(REFUND_REVIEW_MESSAGE)
         if self.balance_source == "synthetic":
             return self.amount
         if self.balance_source == "paypal_due_amount" and self.remaining_amount is not None:

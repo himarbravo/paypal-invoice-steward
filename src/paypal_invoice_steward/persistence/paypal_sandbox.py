@@ -30,9 +30,8 @@ log = logging.getLogger(__name__)
 # Toolkit (python/paypal_agent_toolkit/shared/invoices/parameters.py).
 _OPEN = {"SENT", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "SCHEDULED", "SHARED"}
 _PAID = {"PAID", "MARKED_AS_PAID", "PAID_EXTERNAL"}
-_CANCELLED = {
-    "CANCELLED",
-    "AUTO_CANCELLED",
+_CANCELLED = {"CANCELLED", "AUTO_CANCELLED"}
+_REFUND_REVIEW = {
     "REFUNDED",
     "PARTIALLY_REFUNDED",
     "MARKED_AS_REFUNDED",
@@ -128,6 +127,9 @@ def normalize_invoice(raw: JSON) -> Invoice:
         status = "open"
     elif raw_status in _CANCELLED:
         status = "cancelled"
+    elif raw_status in _REFUND_REVIEW:
+        # PayPal refunds can re-open receivables; never call them cancellations.
+        status = "refund_review"
     elif raw_status in _DRAFT:
         status = "draft"
     else:
@@ -172,7 +174,11 @@ def normalize_invoice(raw: JSON) -> Invoice:
         due=due,
         paid=paid,
         remaining_amount=remaining,
-        balance_source="paypal_due_amount" if remaining is not None else "unverified",
+        balance_source=(
+            "paypal_due_amount"
+            if remaining is not None and status != "refund_review"
+            else "unverified"
+        ),
         payment_origin=origin,
         provider_status=raw_status,
     )
