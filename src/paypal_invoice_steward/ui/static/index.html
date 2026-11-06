@@ -448,7 +448,13 @@ async function refreshLedger() {
     lastForecast = currencies.length ? fc.forecasts[currencies[0]] : null;
     renderLedger();
   } catch (err) {
-    $("#owed").replaceChildren(h("span", { class: "msg err" }, `Could not load invoices: ${err.message}`));
+    // Do not leave previously rendered balances, forecasts or invoice rows visible.
+    lastInvoices = [];
+    lastForecast = null;
+    $("#owed").replaceChildren(h("span", { class: "msg err" }, `Financial figures unavailable: ${err.message}`));
+    $("#chart-wrap").replaceChildren();
+    $("#table").replaceChildren();
+    $("#toggle-paid").hidden = true;
   }
 }
 

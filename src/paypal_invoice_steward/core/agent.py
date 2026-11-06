@@ -18,7 +18,15 @@ from typing import Any
 from .aging import receivables_aging
 from .forecast import forecast
 from .models import JSON
-from .ports import LLMClient, PayPalError, PayPalPort, PayPalUncertain, safe_paypal_error
+from .ports import (
+    INCOMPLETE_INVENTORY_MESSAGE,
+    InvoiceInventoryIncomplete,
+    LLMClient,
+    PayPalError,
+    PayPalPort,
+    PayPalUncertain,
+    safe_paypal_error,
+)
 from .proposals import ProposalError, ProposalService
 
 Today = Callable[[], date]
@@ -244,6 +252,8 @@ class Toolbox:
             return json.dumps(self._dispatch(name, args), default=str), False
         except ProposalError as exc:
             return json.dumps({"error": str(exc)}), True
+        except InvoiceInventoryIncomplete:
+            return json.dumps({"error": INCOMPLETE_INVENTORY_MESSAGE}), True
         except PayPalError as exc:
             return json.dumps({"error": safe_paypal_error(exc)}), True
         except PayPalUncertain:
@@ -427,7 +437,10 @@ class OfflineAgent:
         )
 
     def _forecast(self, toolbox: Toolbox) -> AgentReply:
-        data = json.loads(toolbox.run("get_cash_flow_forecast", {})[0])
+        content, failed = toolbox.run("get_cash_flow_forecast", {})
+        if failed:
+            return AgentReply(INCOMPLETE_INVENTORY_MESSAGE)
+        data = json.loads(content)
         if "message" in data:
             return AgentReply(data["message"])
         lines = []
@@ -447,7 +460,10 @@ class OfflineAgent:
         return AgentReply("\n".join(lines))
 
     def _overdue(self, toolbox: Toolbox) -> AgentReply:
-        data = json.loads(toolbox.run("list_invoices", {"status": "overdue"})[0])
+        content, failed = toolbox.run("list_invoices", {"status": "overdue"})
+        if failed:
+            return AgentReply(INCOMPLETE_INVENTORY_MESSAGE)
+        data = json.loads(content)
         if not data["invoices"]:
             return AgentReply("No invoices are overdue.")
         lines = [f"{data['count']} overdue invoices:"]
@@ -459,7 +475,10 @@ class OfflineAgent:
         return AgentReply("\n".join(lines))
 
     def _reminders(self, toolbox: Toolbox, user_text: str) -> AgentReply:
-        invoices = json.loads(toolbox.run("list_invoices", {"status": "open"})[0])["invoices"]
+        content, failed = toolbox.run("list_invoices", {"status": "open"})
+        if failed:
+            return AgentReply(INCOMPLETE_INVENTORY_MESSAGE)
+        invoices = json.loads(content)["invoices"]
         wanted = {m.upper() for m in self._NUMBER.findall(user_text)}
         targets = (
             [r for r in invoices if r["number"] in wanted]

@@ -5,7 +5,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from paypal_invoice_steward.core.models import Invoice
-from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
+from paypal_invoice_steward.core.ports import (
+    INCOMPLETE_INVENTORY_MESSAGE,
+    InvoiceInventoryIncomplete,
+    PayPalError,
+    PayPalUncertain,
+)
 from paypal_invoice_steward.persistence.paypal_demo import DemoPayPal
 from paypal_invoice_steward.ui.config import Settings
 from paypal_invoice_steward.ui.web import create_app
@@ -222,3 +227,29 @@ def test_explicit_sandbox_llm_opt_in_allows_safe_inprocess_stub() -> None:
     client = TestClient(create_app(settings, port=port, agent=StubAgent(), today=lambda: TODAY))
     assert client.get("/api/health").status_code == 200
     assert port.sent_log == []
+
+
+def test_incomplete_inventory_never_reaches_financial_api_or_offline_agent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    port = DemoPayPal(today=lambda: TODAY)
+
+    def broken_inventory() -> list[Invoice]:
+        raise InvoiceInventoryIncomplete("UPSTREAM_UNTRUSTED_ACCOUNT_DETAIL")
+
+    monkeypatch.setattr(port, "list_invoices", broken_inventory)
+    client = TestClient(
+        create_app(Settings(mode="demo", db_path=":memory:"), port=port, today=lambda: TODAY)
+    )
+    for path in ("/api/invoices", "/api/forecast"):
+        reply = client.get(path)
+        assert reply.status_code == 503
+        assert reply.json() == {"error": INCOMPLETE_INVENTORY_MESSAGE}
+        assert "UPSTREAM_UNTRUSTED_ACCOUNT_DETAIL" not in reply.text
+        assert "forecasts" not in reply.text
+        assert "invoices" not in reply.text.lower()
+    for prompt in ("What is my cash flow forecast?", "Which invoices are overdue?"):
+        response = client.post("/api/chat", json={"message": prompt})
+        assert response.status_code == 200
+        assert response.json()["reply"] == INCOMPLETE_INVENTORY_MESSAGE
+        assert response.json()["proposals"] == []

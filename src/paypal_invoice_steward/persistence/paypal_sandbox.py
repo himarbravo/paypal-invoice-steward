@@ -16,10 +16,12 @@ from typing import Any
 import httpx
 
 from ..core.models import JSON, Invoice
-from ..core.ports import PayPalError, PayPalUncertain
+from ..core.ports import InvoiceInventoryIncomplete, PayPalError, PayPalUncertain
 
 SANDBOX_URL = "https://api-m.sandbox.paypal.com"
 INVOICING_SCOPE = "https://uri.paypal.com/services/invoicing"
+INVOICE_PAGE_SIZE = 50
+MAX_INVOICE_PAGES = 20  # refuse larger inventories, never truncate them
 
 log = logging.getLogger(__name__)
 
@@ -243,23 +245,78 @@ class SandboxPayPal:
     # -- PayPalPort -------------------------------------------------------------
 
     def list_invoices(self) -> list[Invoice]:
+        """Return a complete, count-verified page walk or raise; never return partial data.
+
+        A successful read proves pagination consistency for this API/app request,
+        not a stable cross-page snapshot or all invoices owned by a merchant.
+        """
         invoices: list[Invoice] = []
-        page, page_size = 1, 50
-        while page <= 20:
-            data = (
-                self._request(
-                    "GET",
-                    "/v2/invoicing/invoices",
-                    params={"page": page, "page_size": page_size, "total_required": "true"},
-                )
-                or {}
+        seen_ids: set[str] = set()
+        expected_pages: int | None = None
+        expected_items: int | None = None
+        page = 1
+        while True:
+            data = self._request(
+                "GET",
+                "/v2/invoicing/invoices",
+                params={
+                    "page": page,
+                    "page_size": INVOICE_PAGE_SIZE,
+                    "total_required": "true",
+                },
             )
-            items = data.get("items", [])
-            invoices.extend(normalize_invoice(item) for item in items)
-            if len(items) < page_size:
-                break
+            if not isinstance(data, dict):
+                raise InvoiceInventoryIncomplete("Invoice list has no valid JSON object.")
+            pages = data.get("total_pages")
+            count = data.get("total_items")
+            items = data.get("items")
+            if (
+                type(pages) is not int
+                or type(count) is not int
+                or pages < 0
+                or count < 0
+                or not isinstance(items, list)
+                or len(items) > INVOICE_PAGE_SIZE
+            ):
+                raise InvoiceInventoryIncomplete("Invoice list pagination metadata is invalid.")
+            if expected_pages is None:
+                if pages > MAX_INVOICE_PAGES or count > MAX_INVOICE_PAGES * INVOICE_PAGE_SIZE:
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice inventory exceeds the supported page limit."
+                    )
+                if (pages == 0 and count != 0) or (count == 0 and pages > 1):
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice list has inconsistent empty-page metadata."
+                    )
+                if pages > 0 and count > pages * INVOICE_PAGE_SIZE:
+                    raise InvoiceInventoryIncomplete("Invoice count cannot fit reported pages.")
+                expected_pages, expected_items = pages, count
+            elif pages != expected_pages or count != expected_items:
+                raise InvoiceInventoryIncomplete("Invoice list totals changed during pagination.")
+            if pages == 0 and items:
+                raise InvoiceInventoryIncomplete("Invoice list returned items with zero pages.")
+            for raw in items:
+                if not isinstance(raw, dict):
+                    raise InvoiceInventoryIncomplete("Invoice list contains an invalid record.")
+                invoice_id = raw.get("id")
+                if not isinstance(invoice_id, str) or not invoice_id.strip():
+                    raise InvoiceInventoryIncomplete("Invoice list record has no valid ID.")
+                if invoice_id in seen_ids:
+                    raise InvoiceInventoryIncomplete("Invoice ID repeated across inventory pages.")
+                seen_ids.add(invoice_id)
+                try:
+                    invoices.append(normalize_invoice(raw))
+                except (TypeError, ValueError, KeyError, AttributeError):
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice list record cannot be parsed."
+                    ) from None
+            if pages == 0 or page == pages:
+                if len(invoices) != count:
+                    raise InvoiceInventoryIncomplete(
+                        "Invoice count differs from the declared total."
+                    )
+                return invoices
             page += 1
-        return invoices
 
     def get_invoice(self, invoice_id: str) -> Invoice | None:
         try:

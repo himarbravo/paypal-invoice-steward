@@ -30,6 +30,15 @@ class PayPalUncertain(Exception):
     """We do not know whether the action happened."""
 
 
+class InvoiceInventoryIncomplete(PayPalUncertain):
+    """A full PayPal invoice page walk could not be verified; never publish partial totals."""
+
+
+INCOMPLETE_INVENTORY_MESSAGE = (
+    "PayPal invoice inventory is incomplete or unverified; financial totals are unavailable."
+)
+
+
 def safe_paypal_error(error: PayPalError) -> str:
     """Summarize an upstream rejection without echoing its untrusted message."""
     code = error.status_code

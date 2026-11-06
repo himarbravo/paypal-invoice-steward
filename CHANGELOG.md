@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Reject incomplete or inconsistent PayPal invoice pagination instead of silently truncating after 20 pages; block downstream financial outputs and clear stale browser figures (#102).
 - Require an explicit sandbox opt-in before sending operator chat to an external LLM; document real data flows, lifecycle gaps and policy limitations (#99).
 - Fail closed when the sandbox OAuth token lacks the invoicing scope, Bearer type, app ID or valid lifetime; optionally pin an expected app ID and avoid automatic POST replay after 401 (#97).
 - Minimize PayPal-derived tool output to opaque identifiers and financial fields before sending data to the LLM; omit free-text customer and proposal details and add adversarial tests (#95).
