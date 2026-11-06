@@ -18,7 +18,14 @@ from .. import __version__
 from ..core.agent import AgentReply, LLMAgent, OfflineAgent
 from ..core.forecast import forecast
 from ..core.models import JSON
-from ..core.ports import PayPalError, PayPalPort, PayPalUncertain, safe_paypal_error
+from ..core.ports import (
+    INCOMPLETE_INVENTORY_MESSAGE,
+    InvoiceInventoryIncomplete,
+    PayPalError,
+    PayPalPort,
+    PayPalUncertain,
+    safe_paypal_error,
+)
 from ..core.proposals import ProposalError, ProposalService
 from ..persistence.anthropic_client import AnthropicClient
 from ..persistence.paypal_demo import DemoPayPal
@@ -149,6 +156,10 @@ def create_app(
     @app.exception_handler(PayPalError)
     async def _paypal_error(_: Request, exc: PayPalError) -> JSONResponse:
         return JSONResponse({"error": safe_paypal_error(exc)}, status_code=502)
+
+    @app.exception_handler(InvoiceInventoryIncomplete)
+    async def _inventory_incomplete(_: Request, exc: InvoiceInventoryIncomplete) -> JSONResponse:
+        return JSONResponse({"error": INCOMPLETE_INVENTORY_MESSAGE}, status_code=503)
 
     @app.exception_handler(PayPalUncertain)
     async def _paypal_uncertain(_: Request, exc: PayPalUncertain) -> JSONResponse:
