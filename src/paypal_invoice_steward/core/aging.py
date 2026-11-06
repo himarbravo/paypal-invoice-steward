@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from .models import JSON, Invoice
+from .models import BalanceUnverified, JSON, Invoice
 
 BUCKETS = ("not_due", "1_30", "31_60", "61_90", "91_plus")
 
@@ -28,7 +28,7 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
     open_rows = [inv for inv in invoices if inv.status == "open"]
     basis_kinds = {inv.balance_source for inv in open_rows}
     if len(basis_kinds) > 1:
-        raise ValueError("Mixed invoice balance sources cannot form a trustworthy aging report.")
+        raise BalanceUnverified("Mixed invoice balance sources cannot form an aging report.")
     basis = (
         "PayPal due_amount residuals"
         if basis_kinds == {"paypal_due_amount"}
@@ -73,8 +73,8 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
         "limitations": [
             "Not a historical as-of reconstruction",
             (
-                "Partial payments and remaining balances cannot be verified "
-                "from the current Invoice model"
+                "PayPal residuals use reported due_amount only; synthetic fixtures "
+                "use face amounts, without external ledger matching"
             ),
             "No FX conversion; currencies are never combined",
         ],
