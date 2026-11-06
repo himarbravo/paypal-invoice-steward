@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Reject nonfinite invoice values and recompute stored-payload approval hashes before execution; revalidate legacy invoice policy (#112).
 - Block invoice retries on incomplete or ambiguous reference searches and reread matched invoices before use (#110).
 - Reject unsafe invoice path identifiers and mismatched PayPal read-back identities (#108).
 - Quarantine PayPal refund statuses instead of marking them cancelled; fail closed on unresolved refund totals and revalidate each queued reminder before sending (#106).

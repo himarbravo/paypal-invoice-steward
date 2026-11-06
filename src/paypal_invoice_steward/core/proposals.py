@@ -17,6 +17,7 @@ from __future__ import annotations
 import builtins
 import hashlib
 import json
+import math
 import re
 import uuid
 from collections.abc import Callable
@@ -117,7 +118,7 @@ class ProposalService:
             raise PolicyError(f"Currency must be one of {', '.join(sorted(CURRENCIES))}.")
         try:
             due_days = int(raw.get("due_days", 14))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             raise PolicyError("Payment term must be a whole number of days.") from None
         if not 1 <= due_days <= 90:
             raise PolicyError("Payment term must be between 1 and 90 days.")
@@ -132,16 +133,20 @@ class ProposalService:
                 description = str(entry["description"]).strip()
                 quantity = float(entry.get("quantity", 1))
                 unit_price = round(float(entry["unit_price"]), 2)
-            except (KeyError, TypeError, ValueError, AttributeError):
+            except (KeyError, TypeError, ValueError, AttributeError, OverflowError):
                 raise PolicyError(
                     "Each line item needs a description, quantity and unit price."
                 ) from None
             if not 1 <= len(description) <= 120:
                 raise PolicyError("Line item descriptions must be 1 to 120 characters.")
-            if quantity != int(quantity) or not 1 <= quantity <= 1000:
+            if (
+                not math.isfinite(quantity)
+                or not 1 <= quantity <= 1000
+                or quantity != int(quantity)
+            ):
                 raise PolicyError("Quantities must be whole numbers between 1 and 1000.")
-            if unit_price <= 0:
-                raise PolicyError("Unit prices must be greater than zero.")
+            if not math.isfinite(unit_price) or unit_price <= 0:
+                raise PolicyError("Unit prices must be finite and greater than zero.")
             items.append(
                 {"description": description, "quantity": int(quantity), "unit_price": unit_price}
             )
@@ -155,7 +160,7 @@ class ProposalService:
             "note": note,
         }
         total = invoice_total(spec)
-        if total > self.policy.max_invoice_amount:
+        if not math.isfinite(total) or total > self.policy.max_invoice_amount:
             raise PolicyError(
                 f"Invoices above {_money(self.policy.max_invoice_amount)} {currency} "
                 "must be created directly in PayPal."
@@ -268,6 +273,12 @@ class ProposalService:
             raise HashMismatch(
                 "This proposal is not what you reviewed. Reload it and review it again."
             )
+        if proposal["kind"] not in ("invoice", "reminder"):
+            self.store.log(proposal_id, "refused", "unsupported proposal kind")
+            raise PolicyError("Unsupported proposal kind.")
+        if payload_hash(proposal["kind"], proposal["payload"]) != reviewed_hash:
+            self.store.log(proposal_id, "refused", "stored payload changed")
+            raise HashMismatch("The stored proposal changed. Review a new proposal.")
         status = proposal["status"]
         if status == DONE:
             return self._public(proposal)  # confirming again changes nothing
@@ -280,6 +291,14 @@ class ProposalService:
                 "The outcome of this reminder is unknown. Check PayPal, then create a new "
                 "reminder if the customer did not get it."
             )
+        if proposal["kind"] == "invoice":
+            try:
+                validated = self._validate_invoice(proposal["payload"])
+                if validated != proposal["payload"]:
+                    raise PolicyError("Stored invoice needs a new review.")
+            except PolicyError:
+                self.store.log(proposal_id, "refused", "stored invoice violates policy")
+                raise
         if self.port.mode == "sandbox" and not self.policy.sandbox_writes_enabled:
             self.store.log(proposal_id, "refused", "sandbox outbound actions disabled")
             raise SandboxWritesDisabled(

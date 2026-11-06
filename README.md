@@ -63,7 +63,7 @@ public repository, public video or test fixtures.
 | Risk | What prevents it |
 |------|------------------|
 | The model sends something it should not | The agent's tools only read and *propose*. A test checks that no tool can send, confirm, pay, cancel or delete. |
-| You approve one thing and another is sent | Each proposal carries a hash of its content. Confirming requires the hash you reviewed. |
+| You approve one thing and another is sent | Confirmation recomputes the stored payload hash and compares it with the reviewed hash, then revalidates invoice policy. Altered payloads, unsupported action kinds and nonfinite amounts are refused. This is an integrity check, not authentication of the local database. |
 | Double click or two tabs | Status changes are compare-and-swap in SQLite: exactly one request executes. |
 | Timeout after PayPal already sent | The proposal becomes *unverified*. Reference lookup requires complete count-consistent search results (at most ten) and rereads a unique match by ID. Incomplete, ambiguous or changed results block retries. Search plus create/send is not atomic and still needs real sandbox verification. |
 | Reminder with an unknown outcome | Never retried automatically; a person checks PayPal first. |
