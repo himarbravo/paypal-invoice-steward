@@ -17,7 +17,14 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..core.agent import AgentReply, LLMAgent, OfflineAgent
 from ..core.forecast import forecast
-from ..core.models import BALANCE_UNVERIFIED_MESSAGE, JSON, BalanceUnverified
+from ..core.models import (
+    BALANCE_UNVERIFIED_MESSAGE,
+    REFUND_REVIEW_MESSAGE,
+    JSON,
+    BalanceUnverified,
+    RefundReconciliationRequired,
+    require_refund_reconciliation_clear,
+)
 from ..core.ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
@@ -157,6 +164,10 @@ def create_app(
     async def _paypal_error(_: Request, exc: PayPalError) -> JSONResponse:
         return JSONResponse({"error": safe_paypal_error(exc)}, status_code=502)
 
+    @app.exception_handler(RefundReconciliationRequired)
+    async def _refund_review(_: Request, exc: RefundReconciliationRequired) -> JSONResponse:
+        return JSONResponse({"error": REFUND_REVIEW_MESSAGE}, status_code=503)
+
     @app.exception_handler(BalanceUnverified)
     async def _balance_unverified(_: Request, exc: BalanceUnverified) -> JSONResponse:
         return JSONResponse({"error": BALANCE_UNVERIFIED_MESSAGE}, status_code=503)
@@ -189,7 +200,9 @@ def create_app(
     @app.get("/api/invoices")
     def invoices() -> JSON:
         now = today()
-        rows = [inv.to_dict(now) for inv in port.list_invoices()]
+        source_invoices = port.list_invoices()
+        require_refund_reconciliation_clear(source_invoices)
+        rows = [inv.to_dict(now) for inv in source_invoices]
         rows.sort(key=lambda r: (r["status"] != "open", -r["days_overdue"], r["due"]))
         return {"invoices": rows}
 
