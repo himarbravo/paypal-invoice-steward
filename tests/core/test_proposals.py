@@ -325,9 +325,7 @@ def test_reminder_refuses_unknown_or_zero_paypal_due_without_sending(
     assert service.list() == []
 
 
-@pytest.mark.parametrize(
-    "new_status", ["refund_review", "paid", "cancelled", "unknown"]
-)
+@pytest.mark.parametrize("new_status", ["refund_review", "paid", "cancelled", "unknown"])
 def test_confirm_refuses_stale_reminder_after_paypal_status_change(
     service: ProposalService, port: FakePayPal, new_status: str
 ) -> None:
