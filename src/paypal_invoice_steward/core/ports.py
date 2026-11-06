@@ -85,6 +85,14 @@ class ProposalStore(Protocol):
         """
         ...
 
+    def contact_hold(self, invoice_id: str) -> JSON | None: ...
+
+    def change_contact_hold(
+        self, invoice_id: str, reason: str | None, expected_version: str | None = None
+    ) -> JSON | None:
+        """Set a hold, or release only the exact version reviewed by the operator."""
+        ...
+
     def transition(
         self,
         proposal_id: str,

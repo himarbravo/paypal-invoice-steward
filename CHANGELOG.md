@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
+- Add durable operator-managed contact holds, block queued/new reminders, audit set/release and prevent stale release of a newer hold (#124).
 - Persist app-scoped invoice-read timestamps and missing-record exceptions; show freshness in the browser and block totals when previously observed IDs disappear (#122).
 - Project skeleton: `paypal_invoice_steward` package, tests, documentation, working protocol and CI.
 - Web app (`paypal-invoice-steward`): chat assistant, cash-flow forecast for the next 8 weeks, and invoice and reminder proposals that a person confirms before anything is sent.
