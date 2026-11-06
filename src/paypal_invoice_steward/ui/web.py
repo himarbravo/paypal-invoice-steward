@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..core.agent import AgentReply, LLMAgent, OfflineAgent
 from ..core.forecast import forecast
-from ..core.models import JSON
+from ..core.models import BALANCE_UNVERIFIED_MESSAGE, BalanceUnverified, JSON
 from ..core.ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
@@ -156,6 +156,10 @@ def create_app(
     @app.exception_handler(PayPalError)
     async def _paypal_error(_: Request, exc: PayPalError) -> JSONResponse:
         return JSONResponse({"error": safe_paypal_error(exc)}, status_code=502)
+
+    @app.exception_handler(BalanceUnverified)
+    async def _balance_unverified(_: Request, exc: BalanceUnverified) -> JSONResponse:
+        return JSONResponse({"error": BALANCE_UNVERIFIED_MESSAGE}, status_code=503)
 
     @app.exception_handler(InvoiceInventoryIncomplete)
     async def _inventory_incomplete(_: Request, exc: InvoiceInventoryIncomplete) -> JSONResponse:
