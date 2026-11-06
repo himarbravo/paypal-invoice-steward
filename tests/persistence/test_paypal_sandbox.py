@@ -12,8 +12,8 @@ from paypal_invoice_steward.core.ports import (
     PayPalUncertain,
 )
 from paypal_invoice_steward.persistence.paypal_sandbox import (
-    INVOICING_SCOPE,
     INVOICE_PAGE_SIZE,
+    INVOICING_SCOPE,
     MAX_INVOICE_PAGES,
     SandboxPayPal,
     normalize_invoice,
@@ -171,7 +171,11 @@ def test_expired_token_is_refreshed_once() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls["n"] += 1
-        return httpx.Response(401) if calls["n"] == 1 else httpx.Response(200, json={"items": [], "total_pages": 0, "total_items": 0})
+        if calls["n"] == 1:
+            return httpx.Response(401)
+        return httpx.Response(
+            200, json={"items": [], "total_pages": 0, "total_items": 0}
+        )
 
     assert make(token_then(handler)).list_invoices() == []
 
