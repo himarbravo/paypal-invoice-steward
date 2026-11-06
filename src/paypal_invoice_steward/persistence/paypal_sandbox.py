@@ -50,7 +50,7 @@ def _day(value: str | None) -> date | None:
         return None
 
 
-_DECIMAL_2 = re.compile(r"(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,2})?\\Z")
+_DECIMAL_2 = re.compile(r"(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?\Z")
 
 
 def _remaining_due(raw: JSON, currency: str) -> float | None:
