@@ -1,4 +1,5 @@
 import threading
+from copy import deepcopy
 
 import pytest
 
@@ -12,12 +13,76 @@ from paypal_invoice_steward.core.proposals import (
     PolicyError,
     ProposalService,
     SandboxWritesDisabled,
+    payload_hash,
 )
 from paypal_invoice_steward.persistence.store import SqliteProposalStore
 
 from .conftest import INVOICE, TODAY, FakePayPal
 
 LATE = "INV1"
+
+
+@pytest.mark.parametrize("field", ["quantity", "unit_price"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf"), "NaN", "Infinity"])
+def test_nonfinite_invoice_values_never_create_proposals(
+    service: ProposalService, port: FakePayPal, field: str, value: object
+) -> None:
+    spec = deepcopy(INVOICE)
+    spec["items"][0][field] = value
+    with pytest.raises(PolicyError):
+        service.propose_invoice(spec)
+    assert service.list() == []
+    assert port.sent_log == []
+
+
+@pytest.mark.parametrize("field", ["note", "customer_email", "items"])
+def test_stored_payload_mutation_cannot_reuse_reviewed_hash(
+    service: ProposalService, port: FakePayPal, monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    proposal = service.propose_invoice(INVOICE)
+    original = service.store.get
+
+    def changed(proposal_id: str) -> dict[str, object]:
+        record = original(proposal_id)
+        assert record is not None
+        record["payload"][field] = {
+            "note": "changed",
+            "customer_email": "other@example.com",
+            "items": [{"description": "Different", "quantity": 1, "unit_price": 99}],
+        }[field]
+        return record
+
+    monkeypatch.setattr(service.store, "get", changed)
+    before = len(port.invoices)
+    with pytest.raises(HashMismatch, match="stored proposal changed"):
+        service.confirm(proposal["id"], proposal["payload_hash"])
+    assert len(port.invoices) == before
+    assert port.sent_log == []
+    assert service.get(proposal["id"])["events"][-1]["event"] == "refused"
+
+
+@pytest.mark.parametrize(
+    "kind,price", [("invoice", float("nan")), ("invoice", 10001), ("refund", 10)]
+)
+def test_invalid_legacy_proposal_is_blocked_even_with_matching_hash(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+    price: float,
+) -> None:
+    proposal = service.propose_invoice(INVOICE)
+    record = service.store.get(proposal["id"])
+    assert record is not None
+    record["kind"] = kind
+    record["payload"]["items"][0]["unit_price"] = price
+    record["payload_hash"] = payload_hash(kind, record["payload"])
+    monkeypatch.setattr(service.store, "get", lambda _: deepcopy(record))
+    before = len(port.invoices)
+    with pytest.raises(PolicyError):
+        service.confirm(proposal["id"], record["payload_hash"])
+    assert len(port.invoices) == before
+    assert port.sent_log == []
 
 
 def test_proposing_sends_nothing(service: ProposalService, port: FakePayPal) -> None:
