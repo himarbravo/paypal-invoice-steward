@@ -17,7 +17,7 @@ from typing import Any
 
 from .aging import receivables_aging
 from .forecast import forecast
-from .models import BALANCE_UNVERIFIED_MESSAGE, BalanceUnverified, JSON
+from .models import BALANCE_UNVERIFIED_MESSAGE, JSON, BalanceUnverified
 from .ports import (
     INCOMPLETE_INVENTORY_MESSAGE,
     InvoiceInventoryIncomplete,
