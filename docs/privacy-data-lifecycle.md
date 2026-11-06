@@ -24,6 +24,8 @@
 
 Data minimization of LLM tool results is **pseudonymization/limited disclosure, not guaranteed anonymization**. Invoice IDs and dates can identify someone when combined with another source.
 
+The same local SQLite file also stores invoice-read timestamps, observed/missing invoice IDs and counts, partitioned by mode and a digest of the app client ID. This journal contains no added customer text or financial payloads; its IDs remain potentially linkable. It follows the same manual cleanup and retention limitations as proposals. No inventory journal is sent to the model.
+
 ## 3. Lifecycles, rights and operational response
 
 **Sandbox hackathon:** keep only fictional data. At the end of judging (while preserving any materials needed by contest rules), stop the app, review any backups/screenshots, delete the local demo SQLite database and temporary materials, and rotate test credentials if exposed. No automated cleanup is currently implemented.

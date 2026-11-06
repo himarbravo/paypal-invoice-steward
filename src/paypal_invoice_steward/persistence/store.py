@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime
 
 from ..core.models import JSON
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS proposals (
@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS events (
     event       TEXT NOT NULL,
     detail      TEXT NOT NULL,
     at          TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS inventory_state (
+    source TEXT PRIMARY KEY,
+    data TEXT NOT NULL
 );
 """
 
@@ -182,6 +186,46 @@ class SqliteProposalStore:
                 (proposal_id, event, detail, _now()),
             )
             self._db.commit()
+
+    def inventory(self, source: str) -> JSON:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT data FROM inventory_state WHERE source = ?", (source,)
+            ).fetchone()
+        return json.loads(row[0]) if row else {"status": "not_read", "missing_ids": []}
+
+    def observe_inventory(
+        self,
+        source: str,
+        attempt: str,
+        ids: builtins.list[str] | None = None,
+        *,
+        start: bool = False,
+    ) -> JSON | None:
+        with self._lock, self._db:
+            self._db.execute("BEGIN IMMEDIATE")
+            state = self.inventory(source)
+            if start:
+                state.update(attempt=attempt, last_attempt_at=_now(), status="reading")
+            elif state.get("attempt") != attempt:
+                return None  # an older response cannot overwrite a newer read
+            elif ids is None:
+                state["status"] = "failed"
+            else:
+                known = set(state.get("observed_ids", [])) | set(state["missing_ids"])
+                state.update(
+                    status="observed",
+                    last_success_at=_now(),
+                    observed_ids=sorted(ids),
+                    observed_count=len(ids),
+                    missing_ids=sorted(known - set(ids)),
+                )
+            self._db.execute(
+                "INSERT INTO inventory_state VALUES (?, ?) "
+                "ON CONFLICT(source) DO UPDATE SET data = excluded.data",
+                (source, json.dumps(state)),
+            )
+            return state
 
     def events(self, proposal_id: str) -> builtins.list[JSON]:
         with self._lock:

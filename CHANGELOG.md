@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
+- Persist app-scoped invoice-read timestamps and missing-record exceptions; show freshness in the browser and block totals when previously observed IDs disappear (#122).
 - Project skeleton: `paypal_invoice_steward` package, tests, documentation, working protocol and CI.
 - Web app (`paypal-invoice-steward`): chat assistant, cash-flow forecast for the next 8 weeks, and invoice and reminder proposals that a person confirms before anything is sent.
 - PayPal sandbox and offline demo backends; Claude assistant when `ANTHROPIC_API_KEY` is set, rule-based assistant otherwise.
