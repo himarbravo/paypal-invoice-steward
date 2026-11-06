@@ -5,9 +5,16 @@ import httpx
 import pytest
 
 from paypal_invoice_steward.core.models import JSON
-from paypal_invoice_steward.core.ports import PayPalError, PayPalPort, PayPalUncertain
+from paypal_invoice_steward.core.ports import (
+    InvoiceInventoryIncomplete,
+    PayPalError,
+    PayPalPort,
+    PayPalUncertain,
+)
 from paypal_invoice_steward.persistence.paypal_sandbox import (
     INVOICING_SCOPE,
+    INVOICE_PAGE_SIZE,
+    MAX_INVOICE_PAGES,
     SandboxPayPal,
     normalize_invoice,
 )
@@ -164,7 +171,7 @@ def test_expired_token_is_refreshed_once() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls["n"] += 1
-        return httpx.Response(401) if calls["n"] == 1 else httpx.Response(200, json={"items": []})
+        return httpx.Response(401) if calls["n"] == 1 else httpx.Response(200, json={"items": [], "total_pages": 0, "total_items": 0})
 
     assert make(token_then(handler)).list_invoices() == []
 
@@ -263,7 +270,7 @@ def test_matching_app_pin_and_scope_allow_sandbox_read() -> None:
         paths.append(request.url.path)
         if request.url.path == "/v1/oauth2/token":
             return httpx.Response(200, json=OAUTH_TOKEN)
-        return httpx.Response(200, json={"items": []})
+        return httpx.Response(200, json={"items": [], "total_pages": 0, "total_items": 0})
 
     port = SandboxPayPal(
         "id",
