@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from .models import BalanceUnverified, JSON, Invoice
+from .models import JSON, BalanceUnverified, Invoice
 
 BUCKETS = ("not_due", "1_30", "31_60", "61_90", "91_plus")
 
