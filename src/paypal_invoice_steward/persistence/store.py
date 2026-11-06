@@ -85,23 +85,53 @@ class SqliteProposalStore:
     def insert(self, proposal: JSON) -> None:
         now = _now()
         with self._lock:
-            self._db.execute(
-                "INSERT INTO proposals (id, kind, payload, payload_hash, summary, reference,"
-                " status, result, error, created_at, updated_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)",
-                (
-                    proposal["id"],
-                    proposal["kind"],
-                    json.dumps(proposal["payload"]),
-                    proposal["payload_hash"],
-                    proposal["summary"],
-                    proposal["reference"],
-                    proposal["status"],
-                    now,
-                    now,
-                ),
-            )
+            self._insert_proposal(proposal, now)
             self._db.commit()
+
+    def _insert_proposal(self, proposal: JSON, now: str) -> None:
+        self._db.execute(
+            "INSERT INTO proposals (id, kind, payload, payload_hash, summary, reference,"
+            " status, result, error, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)",
+            (
+                proposal["id"],
+                proposal["kind"],
+                json.dumps(proposal["payload"]),
+                proposal["payload_hash"],
+                proposal["summary"],
+                proposal["reference"],
+                proposal["status"],
+                now,
+                now,
+            ),
+        )
+
+    def create_or_reuse_active_invoice(self, proposal: JSON) -> JSON:
+        """Atomically reuse a matching active invoice proposal across connections."""
+        if proposal["kind"] != "invoice":
+            raise ValueError("Only invoice proposals may use invoice deduplication.")
+        with self._lock, self._db:
+            self._db.execute("BEGIN IMMEDIATE")
+            row = self._db.execute(
+                "SELECT * FROM proposals WHERE kind = 'invoice' AND payload_hash = ?"
+                " AND status IN ('pending', 'executing', 'unverified')"
+                " ORDER BY rowid ASC LIMIT 1",
+                (proposal["payload_hash"],),
+            ).fetchone()
+            if row is None:
+                now = _now()
+                self._insert_proposal(proposal, now)
+                self._db.execute(
+                    "INSERT INTO events (proposal_id, event, detail, at) VALUES (?, ?, ?, ?)",
+                    (proposal["id"], "proposed", proposal["summary"], now),
+                )
+                row = self._db.execute(
+                    "SELECT * FROM proposals WHERE id = ?", (proposal["id"],)
+                ).fetchone()
+        stored = self._row(row)
+        if stored is None:
+            raise RuntimeError("Active invoice proposal disappeared during creation.")
+        return stored
 
     def get(self, proposal_id: str) -> JSON | None:
         with self._lock:

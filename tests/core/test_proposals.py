@@ -332,6 +332,64 @@ def test_same_request_reuses_pending_proposal(service: ProposalService) -> None:
     assert a["id"] == b["id"]
 
 
+@pytest.mark.parametrize("status", ["executing", "unverified"])
+def test_same_request_reuses_active_invoice_proposal(service: ProposalService, status: str) -> None:
+    original = service.propose_invoice(INVOICE)
+    assert service.store.transition(original["id"], ["pending"], status)
+
+    repeated = service.propose_invoice(dict(INVOICE))
+
+    assert repeated["id"] == original["id"]
+    assert repeated["reference"] == original["reference"]
+    assert repeated["status"] == status
+
+
+@pytest.mark.parametrize("status", ["done", "failed", "dismissed"])
+def test_same_request_after_terminal_invoice_proposal_creates_a_new_one(
+    service: ProposalService, status: str
+) -> None:
+    original = service.propose_invoice(INVOICE)
+    assert service.store.transition(original["id"], ["pending"], status)
+
+    repeated = service.propose_invoice(dict(INVOICE))
+
+    assert repeated["id"] != original["id"]
+    assert repeated["reference"] != original["reference"]
+    assert repeated["status"] == "pending"
+
+
+def test_concurrent_equivalent_invoice_requests_reuse_one_active_proposal(tmp_path) -> None:
+    path = str(tmp_path / "proposals.db")
+    start = threading.Barrier(2)
+    services = [
+        ProposalService(FakePayPal(), SqliteProposalStore(path), today=lambda: TODAY)
+        for _ in range(2)
+    ]
+    results: list[dict[str, object]] = []
+    failures: list[BaseException] = []
+
+    def propose(service: ProposalService) -> None:
+        try:
+            start.wait(timeout=5)
+            results.append(service.propose_invoice(deepcopy(INVOICE)))
+        except Exception as exc:
+            failures.append(exc)
+
+    threads = [threading.Thread(target=propose, args=(service,)) for service in services]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert not failures
+    assert len(results) == 2
+    assert {result["id"] for result in results} == {results[0]["id"]}
+    proposal_id = str(results[0]["id"])
+    events = services[0].store.events(proposal_id)
+    assert [event["event"] for event in events] == ["proposed"]
+    assert len(services[0].list()) == 1
+
+
 @pytest.mark.parametrize(
     "change",
     [
