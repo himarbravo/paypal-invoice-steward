@@ -42,7 +42,7 @@ _DRAFT = {"DRAFT"}
 
 
 def _day(value: str | None) -> date | None:
-    if not value:
+    if not isinstance(value, str) or not value:
         return None
     try:
         return date.fromisoformat(value[:10])
@@ -61,9 +61,10 @@ def _remaining_due(raw: JSON, currency: str) -> float | None:
     value = due.get("value")
     if currency not in {"EUR", "USD", "GBP"} or not isinstance(value, str):
         return None
-    if _DECIMAL_2.fullmatch(value) is None:
+    if len(value) > 32 or _DECIMAL_2.fullmatch(value) is None:
         return None
-    return float(value)
+    result = float(value)
+    return result if math.isfinite(result) else None
 
 
 def _payment_provenance(raw: JSON, status: str) -> tuple[str, date | None]:
