@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from paypal_invoice_steward.core.forecast import forecast, payment_habits
-from paypal_invoice_steward.core.models import Invoice
+from paypal_invoice_steward.core.models import BalanceUnverified, Invoice
 
 TODAY = date(2026, 10, 29)
 
@@ -97,3 +97,20 @@ def test_unknown_invoices_are_left_out() -> None:
     weird.status = "unknown"
     data = forecast([*_book(), weird], TODAY)["EUR"]
     assert data["open_amount"] == 2500
+
+
+def test_forecast_uses_paypal_due_amount_as_residual() -> None:
+    inv = _open(123, "Partial", 450, -5)
+    inv.balance_source = "paypal_due_amount"
+    inv.remaining_amount = 250.75
+    out = forecast([inv], TODAY, sims=100)
+    assert out["EUR"]["open_amount"] == 250.75
+    assert out["EUR"]["invoices"][0]["amount"] == 250.75
+    assert inv.amount == 450
+
+
+def test_forecast_does_not_quote_face_amount_when_paypal_due_is_missing() -> None:
+    inv = _open(124, "No evidence", 450, -5)
+    inv.balance_source = "unverified"
+    with pytest.raises(BalanceUnverified):
+        forecast([inv], TODAY, sims=100)
