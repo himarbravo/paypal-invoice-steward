@@ -23,6 +23,50 @@ from .conftest import INVOICE, TODAY, FakePayPal
 LATE = "INV1"
 
 
+def test_sandbox_reminder_discloses_provider_delivery_before_approval(
+    service: ProposalService,
+    port: FakePayPal,
+) -> None:
+    port.mode = "sandbox"
+    p = service.propose_reminder("INV1")
+    assert "PayPal generates" in p["payload"]["note"]
+    assert "does not stop external reminders" in p["payload"]["delivery_notice"]
+    assert p["payload_hash"] == payload_hash("reminder", p["payload"])
+    with pytest.raises(PolicyError, match="custom notes"):
+        service.propose_reminder("INV2", "Custom text")
+    assert port.sent_log == []
+    service.policy = Policy(sandbox_writes_enabled=True)
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "done"
+    assert port.sent_log == [("reminder", "INV1")]
+
+
+def test_legacy_sandbox_reminder_requires_fresh_delivery_review(
+    service: ProposalService,
+    port: FakePayPal,
+) -> None:
+    p = service.propose_reminder("INV1")
+    port.mode = "sandbox"
+    service.policy = Policy(sandbox_writes_enabled=True)
+    result = service.confirm(p["id"], p["payload_hash"])
+    assert result["status"] == "failed"
+    assert "new proposal" in result["error"]
+    assert port.sent_log == []
+
+
+@pytest.mark.parametrize("raw", ["SCHEDULED", "PAYMENT_PENDING"])
+def test_scheduled_or_pending_payment_never_gets_reminder(
+    service: ProposalService,
+    port: FakePayPal,
+    raw: str,
+) -> None:
+    p = service.propose_reminder("INV1")
+    port.invoices["INV1"].provider_status = raw
+    with pytest.raises(PolicyError):
+        service.propose_reminder("INV1")
+    assert service.confirm(p["id"], p["payload_hash"])["status"] == "failed"
+    assert port.sent_log == []
+
+
 @pytest.mark.parametrize(
     "status,raw",
     [

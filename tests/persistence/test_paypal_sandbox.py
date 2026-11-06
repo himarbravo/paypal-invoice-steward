@@ -223,6 +223,23 @@ def test_valid_invoice_id_targets_exact_resource() -> None:
     ]
 
 
+def test_notification_requests_explicitly_suppress_cc_and_ignored_text() -> None:
+    bodies: list[JSON] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            bodies.append(json.loads(request.content))
+        return httpx.Response(200, json=RAW)
+
+    port = make(token_then(handler))
+    port.send_invoice("INV2-AAAA")
+    port.send_reminder("INV2-AAAA", "Text PayPal would ignore")
+    assert (
+        bodies
+        == [{"send_to_recipient": True, "send_to_invoicer": False, "additional_recipients": []}] * 2
+    )
+
+
 def test_find_by_reference_matches_exact_number() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":

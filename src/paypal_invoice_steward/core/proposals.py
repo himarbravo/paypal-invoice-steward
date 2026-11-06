@@ -29,6 +29,12 @@ from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore, safe
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CURRENCIES = {"EUR", "USD", "GBP"}
+PAYPAL_REMINDER_TEXT = "PayPal generates the reminder email; custom wording is not supported."
+REMINDER_DELIVERY_NOTICE = (
+    "This app requests no additional CC recipients. Its cooldown covers only local sends; "
+    "PayPal automatic reminders and other contact are unverified. Check PayPal and any "
+    "dispute or contact hold before approving. This app does not stop external reminders."
+)
 
 PENDING, EXECUTING, DONE, UNVERIFIED, FAILED, DISMISSED = (
     "pending",
@@ -199,7 +205,7 @@ class ProposalService:
         invoice = self.port.get_invoice(str(invoice_id))
         if invoice is None:
             raise PolicyError(f"Invoice '{invoice_id}' does not exist.")
-        if invoice.status != "open":
+        if invoice.status != "open" or invoice.provider_status in {"SCHEDULED", "PAYMENT_PENDING"}:
             raise PolicyError(
                 f"Invoice {invoice.number} is {invoice.status}; "
                 "reminders only apply to open invoices."
@@ -223,6 +229,12 @@ class ProposalService:
             f"({_money(remaining)} {invoice.currency}) was due on {invoice.due.isoformat()}. "
             "If you have already paid, please ignore this message."
         )
+        if self.port.mode == "sandbox":
+            if note and note.strip():
+                raise PolicyError(
+                    "PayPal generates reminder content; custom notes are unsupported."
+                )
+            text = PAYPAL_REMINDER_TEXT
         for other in self.store.list([PENDING, UNVERIFIED, DONE]):
             if other["kind"] != "reminder" or other["payload"]["invoice_id"] != invoice.id:
                 continue
@@ -254,6 +266,8 @@ class ProposalService:
             "expected_due": invoice.due.isoformat(),
             "expected_customer_email": invoice.customer_email,
         }
+        if self.port.mode == "sandbox":
+            payload["delivery_notice"] = REMINDER_DELIVERY_NOTICE
         late = invoice.days_overdue(today)
         when = f"{late} days overdue" if late else f"due {invoice.due.isoformat()}"
         summary = (
@@ -389,10 +403,23 @@ class ProposalService:
                 raise PayPalUncertain("PayPal has not confirmed a sent or paid invoice.")
             return {"invoice": invoice.to_dict(today)}
         payload = proposal["payload"]
+        if self.port.mode == "sandbox" and (
+            payload.get("delivery_notice") != REMINDER_DELIVERY_NOTICE
+            or payload.get("note") != PAYPAL_REMINDER_TEXT
+        ):
+            raise ReminderPreflightBlocked(
+                "Reminder blocked: review a new proposal with PayPal delivery details. "
+                "Nothing sent."
+            )
         # The approved text is not safe after a refund, payment or changed balance.
         # Preflight runs inside the compare-and-swap execution slot, before any POST.
         fresh = self.port.get_invoice(payload["invoice_id"])
-        if fresh is None or fresh.status != "open" or fresh.id != payload["invoice_id"]:
+        if (
+            fresh is None
+            or fresh.status != "open"
+            or fresh.id != payload["invoice_id"]
+            or fresh.provider_status in {"SCHEDULED", "PAYMENT_PENDING"}
+        ):
             raise ReminderPreflightBlocked(
                 "Reminder blocked: PayPal invoice is missing or no longer open. Nothing sent."
             )
