@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Atomically reserve reminder sends per invoice, enforce cooldown at confirmation across processes/restarts, and reject changed proposal snapshots (#120).
 - Reject missing/invalid provider invoice dates, face amounts and currencies instead of fabricating financial source facts (#118).
 - Disclose PayPal-generated reminder content and external contact limits, request no inherited CC, and block reminders for scheduled/pending-payment invoices (#116).
 - Validate approved invoice read-back fields before send/verification and require confirmed sent/paid state before reporting completion (#114).

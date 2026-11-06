@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import builtins
 from collections.abc import Iterable
+from datetime import date
 from typing import Any, Protocol
 
 from .models import JSON, Invoice
@@ -75,6 +76,14 @@ class ProposalStore(Protocol):
     def get(self, proposal_id: str) -> JSON | None: ...
 
     def list(self, statuses: Iterable[str] | None = None) -> list[JSON]: ...
+
+    def claim(self, proposal: JSON, reminder_cutoff: date) -> bool:
+        """Atomically reserve an unchanged snapshot for execution.
+
+        Reminders also require no same-invoice execution/uncertain result or
+        completed reminder newer than the inclusive cooldown cutoff.
+        """
+        ...
 
     def transition(
         self,
