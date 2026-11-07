@@ -40,7 +40,7 @@ from ..persistence.inventory import ObservedPayPal
 from ..persistence.paypal_demo import DemoPayPal
 from ..persistence.paypal_sandbox import SandboxPayPal
 from ..persistence.store import SqliteProposalStore
-from .config import Settings, load_settings
+from .config import Settings, load_settings, validate_operator_id
 
 log = logging.getLogger("paypal_invoice_steward")
 STATIC = Path(__file__).parent / "static"
@@ -127,6 +127,9 @@ def create_app(
 ) -> FastAPI:
     """Wire settings, PayPal backend, store and assistant into a FastAPI app."""
     settings = settings or load_settings()
+    operator_id = validate_operator_id(settings.operator_id)
+    if settings.mode == "sandbox" and settings.sandbox_writes_enabled and not operator_id:
+        raise RuntimeError("STEWARD_SANDBOX_WRITES=enabled requires STEWARD_OPERATOR_ID.")
     if (
         settings.mode == "sandbox"
         and settings.anthropic_api_key

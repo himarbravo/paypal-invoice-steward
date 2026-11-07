@@ -150,9 +150,50 @@ def test_sandbox_http_confirm_is_blocked_with_default_settings() -> None:
     assert port.sent_log == []
 
 
+def test_sandbox_write_approval_is_attributed_to_configured_operator() -> None:
+    port = SandboxTestPort(today=lambda: TODAY)
+    app = create_app(
+        Settings(
+            mode="sandbox",
+            sandbox_writes_enabled=True,
+            operator_id="sandbox-approver",
+            db_path=":memory:",
+        ),
+        port=port,
+        today=lambda: TODAY,
+    )
+    client = TestClient(app)
+    proposal = chat(client, INVOICE_REQUEST)["proposals"][0]
+    response = client.post(
+        f"/api/proposals/{proposal['id']}/confirm",
+        json={"payload_hash": proposal["payload_hash"]},
+    )
+    assert response.status_code == 200 and response.json()["status"] == "done"
+    events = client.get(f"/api/proposals/{proposal['id']}").json()["events"]
+    assert (
+        events[-2]["event"],
+        events[-2]["detail"],
+    ) == ("confirmed", "from pending; operator=sandbox-approver")
+
+
+def test_direct_sandbox_settings_cannot_bypass_operator_requirement() -> None:
+    port = SandboxTestPort(today=lambda: TODAY)
+    with pytest.raises(RuntimeError, match="STEWARD_OPERATOR_ID"):
+        create_app(
+            Settings(mode="sandbox", sandbox_writes_enabled=True, db_path=":memory:"),
+            port=port,
+            today=lambda: TODAY,
+        )
+
+
 @pytest.mark.parametrize("enabled", [False, True])
 def test_sandbox_health_shows_outbound_permission_without_credentials(enabled: bool) -> None:
-    settings = Settings(mode="sandbox", sandbox_writes_enabled=enabled, db_path=":memory:")
+    settings = Settings(
+        mode="sandbox",
+        sandbox_writes_enabled=enabled,
+        operator_id="test-operator" if enabled else None,
+        db_path=":memory:",
+    )
     port = SandboxTestPort(today=lambda: TODAY)
     health = (
         TestClient(create_app(settings, port=port, today=lambda: TODAY)).get("/api/health").json()

@@ -19,6 +19,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory)
         "STEWARD_REMINDER_COOLDOWN_DAYS",
         "STEWARD_SANDBOX_WRITES",
         "STEWARD_SANDBOX_LLM",
+        "STEWARD_OPERATOR_ID",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)  # no stray .env file
@@ -108,9 +109,28 @@ def test_sandbox_writes_require_explicit_opt_in(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
     monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
     monkeypatch.setenv("STEWARD_SANDBOX_WRITES", "enabled")
+    monkeypatch.setenv("STEWARD_OPERATOR_ID", "demo-approver")
     settings = load_settings()
     assert settings.sandbox_writes_enabled
     assert settings.policy.sandbox_writes_enabled
+    assert settings.policy.operator_id == "demo-approver"
+
+
+def test_sandbox_writes_require_a_configured_operator(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("STEWARD_SANDBOX_WRITES", "enabled")
+    with pytest.raises(RuntimeError, match="STEWARD_OPERATOR_ID"):
+        load_settings()
+
+
+@pytest.mark.parametrize("operator_id", ["ab", "operator name", "operator@example"])
+def test_invalid_operator_identifier_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, operator_id: str
+) -> None:
+    monkeypatch.setenv("STEWARD_OPERATOR_ID", operator_id)
+    with pytest.raises(RuntimeError, match="STEWARD_OPERATOR_ID"):
+        load_settings()
 
 
 @pytest.mark.parametrize("setting", ["true", "1", "yes", "ENABLED", "disable"])

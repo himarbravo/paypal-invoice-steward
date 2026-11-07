@@ -53,6 +53,8 @@ class Policy:
     max_invoice_amount: float = 10_000.0
     reminder_cooldown_days: int = 3
     sandbox_writes_enabled: bool = False
+    # A server-configured local audit label, not user authentication or RBAC.
+    operator_id: str | None = None
 
 
 class ProposalError(Exception):
@@ -343,7 +345,10 @@ class ProposalService:
                 "contact hold or cooldown."
             )
 
-        self.store.log(proposal_id, "confirmed", f"from {status}")
+        detail = f"from {status}"
+        if self.policy.operator_id:
+            detail += f"; operator={self.policy.operator_id}"
+        self.store.log(proposal_id, "confirmed", detail)
         try:
             result = self._execute(proposal)
         except ReminderPreflightBlocked as exc:
