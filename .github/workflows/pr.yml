@@ -2,7 +2,7 @@ name: PR
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
 
 jobs:
   # Enforces the AGENTS.md conventions (sections 2.2 and 2.4).
@@ -33,3 +33,34 @@ jobs:
             echo "::error::The branch must be named '<type>/<issue-n>-<kebab-description>'. See AGENTS.md 2.2."
             exit 1
           fi
+      - name: Delivery evidence fields
+        env:
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+
+          body = re.sub(r"<!--.*?-->", "", os.environ["PR_BODY"], flags=re.S)
+          fields = {
+              "issue reference": r"^(?:Closes|Refs) #[1-9][0-9]*[ \t]*$",
+              "journey and invariant": r"^- Journey and invariant:[ \t]*\S.*$",
+              "risk": r"^- Risk:[ \t]*(?:standard|critical)[ \t]*$",
+              "verification": r"^- Verification:[ \t]*\S.*$",
+          }
+          missing = [name for name, pattern in fields.items() if not re.search(pattern, body, re.M)]
+          risk = re.findall(r"^- Risk:[ \t]*(\S+)[ \t]*$", body, re.M)
+          if len(risk) != 1:
+              missing.append("exactly one risk declaration")
+          if risk == ["critical"] and os.environ["PR_DRAFT"] != "true":
+              link = r"https://github\.com/[\w.-]+/[\w.-]+/(?:issues|pull)/[1-9][0-9]*#(?:issuecomment|pullrequestreview)-[1-9][0-9]*"
+              if not re.search(r"^- Prior criterion: " + link + r"[ \t]*$", body, re.M):
+                  missing.append("prior criterion comment")
+              final = r"^- Final review: " + link + " " + re.escape(os.environ["PR_HEAD"]) + r"[ \t]*$"
+              if not re.search(final, body, re.M):
+                  missing.append("final review comment and current head SHA")
+          if missing:
+              raise SystemExit("Missing delivery evidence: " + ", ".join(missing))
+          PY
