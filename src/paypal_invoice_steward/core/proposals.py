@@ -468,11 +468,12 @@ class ProposalService:
         return {"invoice_id": payload["invoice_id"], "reminded_on": today.isoformat()}
 
     def verify(self, proposal_id: str) -> JSON:
-        """Ask PayPal what really happened to an unverified invoice proposal."""
+        """Read PayPal to recover an uncertain or interrupted invoice proposal."""
         proposal = self.store.get(proposal_id)
         if proposal is None:
             raise NotFound("Proposal not found.")
-        if proposal["status"] != UNVERIFIED:
+        status = proposal["status"]
+        if status not in (UNVERIFIED, EXECUTING):
             return self._public(proposal)
         if proposal["kind"] != "invoice":
             raise Conflict("Reminders cannot be verified automatically. Check PayPal directly.")
@@ -483,10 +484,15 @@ class ProposalService:
         except (PayPalError, PayPalUncertain):
             raise Conflict("Could not check PayPal right now. Verify again later.") from None
         if invoice is not None and self._invoice_is_sent(invoice):
-            self.store.transition(
-                proposal_id, [UNVERIFIED], DONE, result={"invoice": invoice.to_dict(self.today())}
+            recovered = self.store.transition(
+                proposal_id,
+                [UNVERIFIED, EXECUTING],
+                DONE,
+                result={"invoice": invoice.to_dict(self.today())},
             )
-            self.store.log(proposal_id, "verified", f"found {invoice.number} as {invoice.status}")
+            if recovered:
+                event = "recovered" if status == EXECUTING else "verified"
+                self.store.log(proposal_id, event, f"found {invoice.number} as {invoice.status}")
         elif invoice is not None:
             self.store.log(proposal_id, "verify", f"invoice exists as {invoice.status}, not sent")
         else:

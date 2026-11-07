@@ -31,6 +31,8 @@ A reminder proposal stores a reviewed snapshot: invoice ID/number, recipient ema
 
 Equivalent **invoice** requests reuse one local proposal while its outcome is `pending`, `executing`, or `unverified`, even when separate local SQLite connections request it concurrently. Its PayPal reference and `proposed` audit event are created in the same local transaction. This stops a local duplicate-proposal race; it is not a provider idempotency key, merchant-wide duplicate detector, or a substitute for verified Sandbox read-back.
 
+If the local process is interrupted after reserving an invoice proposal, its `executing` state stays blocked from any create/send retry. The operator may use **Check PayPal** for one read-only lookup by the existing reference. Only an exact approved invoice in a confirmed sent/paid state becomes `done` and records `recovered`; missing, draft, mismatched, unconfirmed, or unavailable responses remain unresolved. Reminders have no automatic recovery and require direct provider/operator checking. This is not a lease timeout or evidence of a live Sandbox write.
+
 ## Unresolved acceptance
 
 - No end-to-end merchant sandbox account validation, transaction idempotency ledger, verified external receipt, refund identity and allocation, or accounting-system reconciliation.

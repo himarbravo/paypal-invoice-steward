@@ -421,6 +421,73 @@ def test_timeout_after_send_is_unverified_then_verified_without_duplicate(
     assert [k for k, _ in port.sent_log].count("invoice") == 1
 
 
+def test_interrupted_invoice_is_recovered_by_read_only_lookup_without_resend(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    proposal = service.propose_invoice(INVOICE)
+    invoice = port.create_invoice_draft(proposal["payload"], proposal["reference"])
+    port.send_invoice(invoice.id)
+    assert service.store.transition(proposal["id"], ["pending"], "executing")
+
+    recovered = service.verify(proposal["id"])
+
+    assert recovered["status"] == "done"
+    assert port.sent_log == [("invoice", invoice.id)]
+    assert service.get(proposal["id"])["events"][-1]["event"] == "recovered"
+
+
+@pytest.mark.parametrize("provider_state", ["missing", "draft", "mismatched"])
+def test_interrupted_invoice_without_exact_sent_readback_stays_executing(
+    service: ProposalService, port: FakePayPal, provider_state: str
+) -> None:
+    proposal = service.propose_invoice(INVOICE)
+    assert service.store.transition(proposal["id"], ["pending"], "executing")
+    if provider_state == "draft":
+        port.create_invoice_draft(proposal["payload"], proposal["reference"])
+    elif provider_state == "mismatched":
+        invoice = port.create_invoice_draft(proposal["payload"], proposal["reference"])
+        invoice.customer_email = "other@example.com"
+
+    if provider_state == "mismatched":
+        with pytest.raises(Conflict, match="Could not check PayPal"):
+            service.verify(proposal["id"])
+    else:
+        assert service.verify(proposal["id"])["status"] == "executing"
+    assert service.get(proposal["id"])["status"] == "executing"
+    with pytest.raises(Conflict, match="already being executed"):
+        service.confirm(proposal["id"], proposal["payload_hash"])
+    assert port.sent_log == []
+
+
+def test_interrupted_reminder_cannot_be_verified_or_retried(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    proposal = service.propose_reminder(LATE)
+    assert service.store.transition(proposal["id"], ["pending"], "executing")
+
+    with pytest.raises(Conflict, match="Reminders cannot be verified"):
+        service.verify(proposal["id"])
+    with pytest.raises(Conflict, match="already being executed"):
+        service.confirm(proposal["id"], proposal["payload_hash"])
+    assert port.sent_log == []
+
+
+def test_interrupted_invoice_provider_outage_stays_executing(
+    service: ProposalService, port: FakePayPal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    proposal = service.propose_invoice(INVOICE)
+    assert service.store.transition(proposal["id"], ["pending"], "executing")
+
+    def unavailable(_: str) -> Invoice | None:
+        raise PayPalUncertain("UNTRUSTED_PROVIDER_TEXT")
+
+    monkeypatch.setattr(port, "find_by_reference", unavailable)
+    with pytest.raises(Conflict, match="Could not check PayPal"):
+        service.verify(proposal["id"])
+    assert service.get(proposal["id"])["status"] == "executing"
+    assert port.sent_log == []
+
+
 def test_retry_after_unverified_does_not_duplicate(
     service: ProposalService, port: FakePayPal
 ) -> None:

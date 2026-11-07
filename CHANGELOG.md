@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Allow a read-only exact-match recovery check for interrupted invoice executions while keeping sends/retries blocked (#134).
 - Atomically reuse equivalent active invoice proposals across local SQLite connections, preventing concurrent requests from receiving separate PayPal references (#132).
 - Accept PayPal Sandbox's zero-total invoice list when it omits the `items` key, while retaining fail-closed validation for every other malformed list shape (#130).
 - Load local configuration only from the application's working directory so developer credentials do not leak into isolated tests (#128).
