@@ -2,7 +2,7 @@ name: PR
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
 
 jobs:
   # Enforces the AGENTS.md conventions (sections 2.2 and 2.4).
@@ -10,26 +10,88 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: PR title in Conventional Commits format
+      - name: Delivery protocol and canaries
         env:
-          TITLE: ${{ github.event.pull_request.title }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .*[^.]$'
-          if [[ ! "$TITLE" =~ $pattern ]]; then
-            echo "::error::The title must be '<type>(<optional scope>): <summary>' and must not end with a period. See AGENTS.md 2.3."
-            exit 1
-          fi
-          if [ "${#TITLE}" -gt 72 ]; then
-            echo "::error::The title has ${#TITLE} characters; the maximum is 72."
-            exit 1
-          fi
-      - name: Branch name
-        env:
-          BRANCH: ${{ github.head_ref }}
-        run: |
-          pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore)/[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
-          release='^chore/release-v[0-9]+\.[0-9]+\.[0-9]+'
-          if [[ ! "$BRANCH" =~ $pattern && ! "$BRANCH" =~ $release ]]; then
-            echo "::error::The branch must be named '<type>/<issue-n>-<kebab-description>'. See AGENTS.md 2.2."
-            exit 1
-          fi
+          python3 - <<'PY'
+          import os
+          import re
+
+
+          def violations(title, branch, body, draft, head, repo, number):
+              errors = []
+              title_pattern = r"(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .*[^.]"
+              if len(title) > 72 or not re.fullmatch(title_pattern, title):
+                  errors.append("title")
+              branch_match = re.fullmatch(
+                  r"(?:feat|fix|refactor|perf|test|docs|style|build|ci|chore)/([1-9][0-9]*)-[a-z0-9]+(?:-[a-z0-9]+)*",
+                  branch,
+              )
+              if not branch_match and not re.fullmatch(r"chore/release-v[0-9]+\.[0-9]+\.[0-9]+", branch):
+                  errors.append("branch")
+
+              body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+              issues = re.findall(r"^(?:Closes|Refs) #([1-9][0-9]*)[ \t]*$", body, re.M)
+              if len(issues) != 1 or (branch_match and branch_match[1] not in issues):
+                  errors.append("issue reference")
+              for field in ("Journey and invariant", "Verification"):
+                  if not re.search(r"^- " + field + r":[ \t]*\S[^\n]*$", body, re.M):
+                      errors.append(field)
+              risks = re.findall(r"^- Risk:[ \t]*([^\n]*?)\s*$", body, re.M)
+              if risks not in (["standard"], ["critical"]):
+                  errors.append("risk")
+              if risks == ["critical"] and not draft:
+                  root = r"https://github\.com/" + re.escape(repo)
+                  issue = issues[0] if len(issues) == 1 else ""
+                  prior = root + "/issues/" + issue + r"#issuecomment-[1-9][0-9]*"
+                  final = root + "/pull/" + number + r"#(?:issuecomment|pullrequestreview)-[1-9][0-9]* " + re.escape(head)
+                  for label, pattern in (("Prior criterion", prior), ("Final review", final)):
+                      values = re.findall(r"^- " + label + r":[ \t]*([^\n]*)$", body, re.M)
+                      if len(values) != 1 or not re.fullmatch(pattern, values[0].rstrip()):
+                          errors.append(label)
+              return errors
+
+
+          title = "fix: preserve evidence"
+          branch = "fix/7-preserve-evidence"
+          head = "a" * 40
+          standard = "Refs #7\n- Journey and invariant: J1/I1\n- Verification: observed\n- Risk: standard"
+          critical = standard.replace("standard", "critical")
+          reviewed = critical + "\n- Prior criterion: https://github.com/test/repo/issues/7#issuecomment-9"
+          reviewed += "\n- Final review: https://github.com/test/repo/pull/8#pullrequestreview-10 " + head
+          cases = [
+              ("standard", title, branch, standard, False, []),
+              ("reviewed", title, branch, reviewed, False, []),
+              ("draft", title, branch, critical, True, []),
+              ("title", "bad", branch, standard, False, ["title"]),
+              ("branch", title, "main", standard, False, ["branch"]),
+              ("issue mismatch", title, branch, standard.replace("#7", "#6"), False, ["issue reference"]),
+              ("empty journey", title, branch, standard.replace("J1/I1", "<!-- fill in -->"), False, ["Journey and invariant"]),
+              ("missing result", title, branch, standard.replace("observed", ""), False, ["Verification"]),
+              ("duplicate risk", title, branch, standard + "\n- Risk: critical", False, ["risk"]),
+              ("missing reviews", title, branch, critical, False, ["Prior criterion", "Final review"]),
+              ("wrong issue", title, branch, reviewed.replace("/issues/7", "/issues/6"), False, ["Prior criterion"]),
+              ("wrong PR", title, branch, reviewed.replace("/pull/8", "/pull/9"), False, ["Final review"]),
+              ("wrong repo", title, branch, reviewed.replace("/test/repo/pull", "/test/other/pull"), False, ["Final review"]),
+              ("stale SHA", title, branch, reviewed.replace(head, "b" * 40), False, ["Final review"]),
+          ]
+          for name, case_title, case_branch, case_body, draft, expected in cases:
+              actual = violations(case_title, case_branch, case_body, draft, head, "test/repo", "8")
+              if actual != expected:
+                  raise SystemExit(f"Protocol canary {name}: expected {expected}, got {actual}")
+          print(f"{len(cases)} protocol canaries passed")
+
+          errors = violations(
+              os.environ["PR_TITLE"], os.environ["PR_BRANCH"], os.environ["PR_BODY"],
+              os.environ["PR_DRAFT"] == "true", os.environ["PR_HEAD"],
+              os.environ["GITHUB_REPOSITORY"], os.environ["PR_NUMBER"],
+          )
+          if errors:
+              raise SystemExit("Delivery protocol violations: " + ", ".join(errors))
+          PY

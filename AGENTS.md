@@ -13,6 +13,8 @@ This document is the source of truth for any agent (Claude, Codex, Copilot, etc.
 
 ---
 
+Before any critical implementation, follow the [independent criterion protocol](docs/project-contract.md#independent-criterion-review). Keep the criterion and final review links in the PR. A separate reviewer is required even when the implementer is an agent.
+
 ## 1. Principles
 
 1. **Nothing enters `main` without a PR.** `main` always builds and passes the tests.
@@ -73,7 +75,7 @@ chore(ci): cache dependencies
 ### 2.4 Pull requests
 - Open the PR early as a **draft**: `gh pr create --draft --fill`.
 - Title = same format as a commit (it becomes the squash message).
-- Body following [.github/pull_request_template.md](.github/pull_request_template.md). It must include `Closes #<n>`.
+- Body following [.github/pull_request_template.md](.github/pull_request_template.md). Use `Closes #<n>` if acceptance is complete before merge. Use `Refs #<n>` when acceptance depends on post-merge evidence.
 - Before marking it *ready for review*:
   - [ ] Rebased on `main` (`git fetch && git rebase origin/main`), no conflicts.
   - [ ] Lint, format and tests pass locally.
