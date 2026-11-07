@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Constrain the Anthropic SDK to the tested 1.x series while the 2.x import stalls on local Python 3.14 (#135).
 - Require a configured local operator audit label for sandbox writes and record it with the approval event; this is not authentication or role authorization (#137).
 - Allow a read-only exact-match recovery check for interrupted invoice executions while keeping sends/retries blocked (#134).
 - Atomically reuse equivalent active invoice proposals across local SQLite connections, preventing concurrent requests from receiving separate PayPal references (#132).
