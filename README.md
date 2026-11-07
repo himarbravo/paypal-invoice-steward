@@ -98,6 +98,12 @@ mypy                    # types (strict)
 
 The PayPal client is tested against a mocked HTTP transport and the agent against a scripted model. The test suite does not call the real PayPal sandbox or the Claude API.
 
+The project deliberately constrains the Anthropic SDK to `anthropic>=1,<2`. In a clean
+Python 3.14 environment, the tested 1.17.0 release imports and passes the complete suite;
+the unconstrained 2.6.0 release did not complete its import within 20 seconds (#135). This
+is a local development compatibility guard, not evidence of an Anthropic API request or
+a permanent rejection of the 2.x API. The supported CI matrix remains Python 3.11/3.12.
+
 ## Documentation
 
 | Document | Purpose |

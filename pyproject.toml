@@ -11,7 +11,9 @@ license = "MIT"
 requires-python = ">=3.11"
 authors = [{ name = "Himar Bravo Pérez" }]
 dependencies = [
-    "anthropic>=0.40",
+    # 2.x imports take more than 20 seconds on the local Python 3.14 runtime; #135.
+    # Keep the current, tested 1.x client surface until the upstream import regression is resolved.
+    "anthropic>=1,<2",
     "fastapi>=0.110",
     "httpx>=0.27",
     "python-dotenv>=1.0",
