@@ -16,3 +16,15 @@ Critical changes include financial logic, external writes, security, migrations 
 For critical changes, the orchestrator must appoint a separate criterion reviewer (a subagent in a fresh context, or a qualified human). Before implementation, give the reviewer the issue, project contract, current behavior and primary sources. Withhold the proposed solution. The reviewer records their identity or session, observable expected results, negative cases and required evidence in a dated comment on the issue. Implementation waits for this record. Changes to the criteria require another independent review and a linked rationale.
 
 After implementation, the reviewer checks the diff and evidence against the agreed criteria and records a verdict and full head SHA in a GitHub comment. A new head requires a renewed review. The merge owner checks authorship, timing, verdict and SHA and resolves any policy or scope disagreement with the project owner. The workflow checks reference format and SHA equality. It cannot establish independence or evidence quality.
+
+
+## Protocol canaries
+
+The conventions job runs positive and negative fixtures against the same validator used on the live PR. It checks titles, branch-to-issue alignment, evidence fields, risk declarations, review links and head freshness. A failed fixture identifies a regression in the validator. A failed live check identifies the missing or inconsistent field. Verify that the conventions check is required by branch protection.
+
+The merge owner checks the remaining signals on the live PR:
+
+- Critical risk downgraded to standard, scope drift or an invariant with no corresponding proof: stop and reconcile against the issue and this contract.
+- Missing, late, self-authored or stale review evidence: stop and obtain the applicable review. Check comment authors, timestamps, verdict and reviewed head directly.
+- Results that cannot be reproduced or offline evidence presented as provider verification: leave the acceptance criterion open.
+- Missing required checks for the exact head, or missing post-merge evidence: block merge or defer issue closure, respectively.
