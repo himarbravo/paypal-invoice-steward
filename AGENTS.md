@@ -13,6 +13,8 @@ This document is the source of truth for any agent (Claude, Codex, Copilot, etc.
 
 ---
 
+Before any critical implementation, follow the [independent criterion protocol](docs/project-contract.md#independent-criterion-review). Keep the criterion and final review links in the PR. A separate reviewer is required even when the implementer is an agent.
+
 ## 1. Principles
 
 1. **Nothing enters `main` without a PR.** `main` always builds and passes the tests.
