@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +11,19 @@ from dotenv import load_dotenv
 
 from ..core.proposals import Policy
 from ..persistence.paypal_sandbox import SANDBOX_URL
+
+_OPERATOR_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{2,63}")
+
+
+def validate_operator_id(value: str | None) -> str | None:
+    """Validate a local audit label; this deliberately is not authentication."""
+    if value is None:
+        return None
+    if not _OPERATOR_ID.fullmatch(value):
+        raise RuntimeError(
+            "STEWARD_OPERATOR_ID must be 3-64 letters, numbers, dots, underscores or hyphens."
+        )
+    return value
 
 
 @dataclass(frozen=True)
@@ -28,6 +42,7 @@ class Settings:
     reminder_cooldown_days: int = 3
     sandbox_writes_enabled: bool = False
     sandbox_llm_enabled: bool = False
+    operator_id: str | None = None
 
     @property
     def llm_enabled(self) -> bool:
@@ -39,6 +54,7 @@ class Settings:
             max_invoice_amount=self.max_invoice_amount,
             reminder_cooldown_days=self.reminder_cooldown_days,
             sandbox_writes_enabled=self.sandbox_writes_enabled,
+            operator_id=self.operator_id,
         )
 
 
@@ -57,6 +73,9 @@ def load_settings() -> Settings:
         raise RuntimeError("STEWARD_SANDBOX_WRITES must be 'enabled' or 'disabled'.")
     if writes_setting == "enabled" and mode != "sandbox":
         raise RuntimeError("STEWARD_SANDBOX_WRITES=enabled requires sandbox mode.")
+    operator_id = validate_operator_id(os.getenv("STEWARD_OPERATOR_ID") or None)
+    if writes_setting == "enabled" and not operator_id:
+        raise RuntimeError("STEWARD_SANDBOX_WRITES=enabled requires STEWARD_OPERATOR_ID.")
     llm_key = os.getenv("ANTHROPIC_API_KEY") or None
     llm_setting = (os.getenv("STEWARD_SANDBOX_LLM") or "").strip()
     if llm_setting not in ("", "enabled", "disabled"):
@@ -88,4 +107,5 @@ def load_settings() -> Settings:
         reminder_cooldown_days=int(os.getenv("STEWARD_REMINDER_COOLDOWN_DAYS", "3")),
         sandbox_writes_enabled=writes_setting == "enabled",
         sandbox_llm_enabled=llm_setting == "enabled",
+        operator_id=operator_id,
     )
