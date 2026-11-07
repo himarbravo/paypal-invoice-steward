@@ -240,7 +240,7 @@ function slipActions(p, el) {
       h("button", { class: "btn go", type: "button", onclick: (e) => act(e.currentTarget, el, p, "confirm") }, label),
       h("button", { class: "btn ghost", type: "button", onclick: (e) => act(e.currentTarget, el, p, "dismiss") }, "Dismiss"));
   }
-  if (p.status === "unverified") {
+  if (p.status === "unverified" || (p.status === "executing" && p.kind === "invoice")) {
     return h("div", { class: "actions" },
       p.kind === "invoice"
         ? [h("button", { class: "btn go", type: "button", onclick: (e) => act(e.currentTarget, el, p, "verify") }, "Check PayPal")]
@@ -256,12 +256,15 @@ function renderSlip(el, p, justChanged = false) {
   const parts = [
     stampText ? h("span", { class: `stamp${justChanged ? " struck" : ""}` }, stampText) : null,
     h("h3", {}, p.summary),
+    p.status === "executing" && p.kind === "invoice" ? h("p", { class: "problem" },
+      "This execution was interrupted before its outcome was saved. ",
+      "Check PayPal; this will not send another invoice.") : null,
     p.status === "unverified" ? h("p", { class: "problem" },
       "We could not confirm whether this went through. ",
       p.kind === "invoice" ? "Check PayPal before doing anything else; retrying is safe." : "Check PayPal before sending another.") : null,
     p.status === "failed" ? h("p", { class: "problem" }, `PayPal refused it, so nothing was sent. ${p.error || ""}`) : null,
     p.status === "dismissed" ? h("p", { class: "fine" }, "Dismissed. Nothing was sent.") : null,
-    p.status === "pending" || p.status === "unverified" ? slipDetails(p) : null,
+    p.status === "pending" || p.status === "executing" || p.status === "unverified" ? slipDetails(p) : null,
     slipActions(p, el),
     p.status === "pending" ? h("p", { class: "fine" }, `Sending uses exactly what you see here. Reference ${p.reference}.`) : null,
     p.status === "done" && p.kind === "invoice" && p.result ? h("p", { class: "fine" }, `PayPal invoice ${p.result.invoice.number}, due ${shortDate(p.result.invoice.due)}.`) : null,
