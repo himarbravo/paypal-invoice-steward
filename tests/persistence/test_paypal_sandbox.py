@@ -261,14 +261,16 @@ def test_create_sends_idempotency_header_and_reads_back() -> None:
 
 def test_5xx_and_network_errors_are_uncertain() -> None:
     port = make(token_then(lambda r: httpx.Response(503)))
-    with pytest.raises(PayPalUncertain):
+    with pytest.raises(PayPalUncertain) as server_error:
         port.send_reminder("X", "hi")
+    assert server_error.value.reason_code == "provider_server_error"
 
     def boom(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("slow")
 
-    with pytest.raises(PayPalUncertain):
+    with pytest.raises(PayPalUncertain) as transport_error:
         make(token_then(boom)).send_reminder("X", "hi")
+    assert transport_error.value.reason_code == "provider_transport_failure"
 
 
 def test_4xx_is_definitive_error() -> None:
@@ -329,6 +331,16 @@ def test_read_back_never_accepts_another_invoice(body: JSON) -> None:
     port = make(token_then(lambda r: httpx.Response(200, json=body)))
     with pytest.raises(PayPalUncertain, match="identity"):
         port.get_invoice("INV2-AAAA")
+
+
+def test_malformed_read_back_gets_a_safe_reason_code() -> None:
+    malformed = {**RAW, "detail": {**RAW["detail"], "payment_term": {}}}
+    port = make(token_then(lambda r: httpx.Response(200, json=malformed)))
+
+    with pytest.raises(PayPalUncertain) as exc_info:
+        port.get_invoice("INV2-AAAA")
+
+    assert exc_info.value.reason_code == "provider_readback_invalid"
 
 
 def test_valid_invoice_id_targets_exact_resource() -> None:

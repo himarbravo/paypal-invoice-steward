@@ -25,7 +25,14 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from .models import JSON, BalanceUnverified, Invoice, invoice_content_digest, invoice_total
-from .ports import PayPalError, PayPalPort, PayPalUncertain, ProposalStore, safe_paypal_error
+from .ports import (
+    PayPalError,
+    PayPalPort,
+    PayPalUncertain,
+    ProposalStore,
+    safe_paypal_error,
+    safe_uncertain_reason,
+)
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CURRENCIES = {"EUR", "USD", "GBP"}
@@ -359,16 +366,16 @@ class ProposalService:
             message = safe_paypal_error(exc)
             self.store.transition(proposal_id, [EXECUTING], FAILED, error=message)
             self.store.log(proposal_id, "failed", message)
-        except PayPalUncertain:
+        except PayPalUncertain as exc:
             message = "PayPal outcome unknown; verify before retrying."
             self.store.transition(proposal_id, [EXECUTING], UNVERIFIED, error=message)
-            self.store.log(proposal_id, "unverified", message)
+            self.store.log(proposal_id, "unverified", f"reason={safe_uncertain_reason(exc)}")
         except Exception as exc:  # any surprise means "we don't know"
             message = (
                 f"Unexpected error ({type(exc).__name__}). Outcome unknown; verify before retrying."
             )
             self.store.transition(proposal_id, [EXECUTING], UNVERIFIED, error=message)
-            self.store.log(proposal_id, "unverified", message)
+            self.store.log(proposal_id, "unverified", "reason=local_unexpected_error")
         else:
             self.store.transition(proposal_id, [EXECUTING], DONE, result=result)
             self.store.log(proposal_id, "done", "")
@@ -388,7 +395,10 @@ class ProposalService:
             or invoice.due != invoice.issued + timedelta(days=spec["due_days"])
             or invoice.content_digest != invoice_content_digest(spec)
         ):
-            raise PayPalUncertain("PayPal invoice differs from the approved details.")
+            raise PayPalUncertain(
+                "PayPal invoice differs from the approved details.",
+                reason_code="approved_data_mismatch",
+            )
 
     @staticmethod
     def _invoice_is_sent(invoice: Invoice) -> bool:
@@ -416,15 +426,24 @@ class ProposalService:
             if invoice.status == "cancelled":
                 raise PayPalError("This invoice already exists in PayPal but was cancelled.")
             if invoice.status == "unknown":
-                raise PayPalUncertain("PayPal reports a status this app does not know.")
+                raise PayPalUncertain(
+                    "PayPal reports a status this app does not know.",
+                    reason_code="provider_status_unknown",
+                )
             if invoice.status == "draft":
                 invoice_id = invoice.id
                 invoice = self.port.send_invoice(invoice_id)
                 if invoice.id != invoice_id:
-                    raise PayPalUncertain("PayPal returned another invoice after send.")
+                    raise PayPalUncertain(
+                        "PayPal returned another invoice after send.",
+                        reason_code="provider_identity_mismatch",
+                    )
                 self._check_invoice_readback(proposal, invoice)
             if not self._invoice_is_sent(invoice):
-                raise PayPalUncertain("PayPal has not confirmed a sent or paid invoice.")
+                raise PayPalUncertain(
+                    "PayPal has not confirmed a sent or paid invoice.",
+                    reason_code="provider_send_unconfirmed",
+                )
             return {"invoice": invoice.to_dict(today)}
         payload = proposal["payload"]
         if self.port.mode == "sandbox" and (
