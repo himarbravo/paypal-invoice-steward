@@ -286,6 +286,25 @@ class SqliteProposalStore:
             )
             self._db.commit()
 
+    def log_if_status(
+        self, proposal_id: str, statuses: Iterable[str], event: str, detail: str = ""
+    ) -> bool:
+        """Record an observation only if it still describes the current proposal state."""
+        allowed = [*statuses]
+        if not allowed:
+            return False
+        marks = ",".join("?" for _ in allowed)
+        with self._lock, self._db:
+            cur = self._db.execute(
+                "INSERT INTO events (proposal_id, event, detail, at)"
+                " SELECT ?, ?, ?, ? WHERE EXISTS ("
+                " SELECT 1 FROM proposals WHERE id = ?"
+                f" AND status IN ({marks})"
+                ")",
+                (proposal_id, event, detail, _now(), proposal_id, *allowed),
+            )
+            return cur.rowcount == 1
+
     def inventory(self, source: str) -> JSON:
         with self._lock:
             row = self._db.execute(

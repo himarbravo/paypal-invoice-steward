@@ -578,6 +578,71 @@ def test_concurrent_confirms_execute_once(service: ProposalService, port: FakePa
     assert service.get(p["id"])["status"] == "done"
 
 
+def test_concurrent_verify_cannot_append_a_stale_observation_after_confirm(
+    service: ProposalService, port: FakePayPal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    proposal = service.propose_invoice(INVOICE)
+    create_started = threading.Event()
+    allow_create = threading.Event()
+    verify_lookup_started = threading.Event()
+    allow_verify_lookup = threading.Event()
+    original_create = port.create_invoice_draft
+    original_find = port.find_by_reference
+
+    def create_after_verify_starts(spec: dict[str, object], reference: str) -> Invoice:
+        create_started.set()
+        assert allow_create.wait(timeout=2)
+        return original_create(spec, reference)
+
+    def find_for_current_operation(reference: str) -> Invoice | None:
+        if threading.current_thread().name == "verify":
+            verify_lookup_started.set()
+            assert allow_verify_lookup.wait(timeout=2)
+            return None
+        return original_find(reference)
+
+    monkeypatch.setattr(port, "create_invoice_draft", create_after_verify_starts)
+    monkeypatch.setattr(port, "find_by_reference", find_for_current_operation)
+    results: dict[str, dict[str, object]] = {}
+    errors: list[Exception] = []
+
+    def confirm() -> None:
+        try:
+            results["confirm"] = service.confirm(proposal["id"], proposal["payload_hash"])
+        except Exception as exc:  # test thread reports failures below
+            errors.append(exc)
+
+    def verify() -> None:
+        try:
+            results["verify"] = service.verify(proposal["id"])
+        except Exception as exc:  # test thread reports failures below
+            errors.append(exc)
+
+    confirmer = threading.Thread(target=confirm, name="confirm")
+    confirmer.start()
+    assert create_started.wait(timeout=2)
+
+    verifier = threading.Thread(target=verify, name="verify")
+    verifier.start()
+    assert verify_lookup_started.wait(timeout=2)
+
+    allow_create.set()
+    confirmer.join(timeout=2)
+    assert not confirmer.is_alive()
+    allow_verify_lookup.set()
+    verifier.join(timeout=2)
+    assert not verifier.is_alive()
+
+    assert errors == []
+    assert results["confirm"]["status"] == results["verify"]["status"] == "done"
+    assert [kind for kind, _ in port.sent_log] == ["invoice"]
+    assert [event["event"] for event in service.get(proposal["id"])["events"]] == [
+        "proposed",
+        "confirmed",
+        "done",
+    ]
+
+
 def test_audit_trail_records_steps(service: ProposalService) -> None:
     p = service.propose_invoice(INVOICE)
     service.confirm(p["id"], p["payload_hash"])

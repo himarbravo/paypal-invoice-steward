@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Reject a read-only verification observation if a concurrent confirmation has already completed the proposal, keeping the audit order coherent (#149).
 - Commit each proposal state transition with its matching audit event, including the pre-write confirmation attribution, so a local persistence failure cannot leave one without the other (#147).
 - Constrain the Anthropic SDK to the tested 1.x series while the 2.x import stalls on local Python 3.14 (#135).
 - Require a configured local operator audit label for sandbox writes and record it with the approval event; this is not authentication or role authorization (#137).

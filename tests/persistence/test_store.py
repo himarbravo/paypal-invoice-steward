@@ -98,6 +98,19 @@ def test_stale_transition_with_event_creates_no_event() -> None:
     assert store.events("p1") == []
 
 
+def test_log_if_status_rejects_a_stale_observation() -> None:
+    store = SqliteProposalStore()
+    store.insert(_proposal())
+
+    assert store.log_if_status("p1", ["pending"], "verify", "invoice not found")
+    assert store.transition("p1", ["pending"], "done")
+    assert not store.log_if_status("p1", ["pending"], "verify", "stale")
+
+    assert [(event["event"], event["detail"]) for event in store.events("p1")] == [
+        ("verify", "invoice not found")
+    ]
+
+
 def test_only_one_concurrent_transition_wins() -> None:
     store = SqliteProposalStore()
     store.insert(_proposal())
