@@ -495,6 +495,18 @@ class SandboxPayPal:
                 reason_code="provider_reference_search_invalid",
             )
         items, total, pages = data.get("items"), data.get("total_items"), data.get("total_pages")
+        # PayPal Sandbox may omit `items` entirely for a verified empty search.
+        # Treat only that exact shape as empty; every non-empty or malformed shape
+        # remains uncertain and cannot authorize a new provider write.
+        if (
+            items is None
+            and "items" not in data
+            and type(total) is int
+            and type(pages) is int
+            and total == 0
+            and pages in {0, 1}
+        ):
+            items = []
         if (
             not isinstance(items, list)
             or type(total) is not int
