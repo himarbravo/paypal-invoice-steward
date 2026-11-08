@@ -686,6 +686,52 @@ def test_provider_error_text_never_enters_proposal_or_audit_log(
 
 
 @pytest.mark.parametrize(
+    ("reason_code", "expected_detail"),
+    [
+        ("provider_readback_missing", "reason=provider_readback_missing"),
+        ("UNTRUSTED_PROVIDER_REASON", "reason=provider_outcome_unknown"),
+    ],
+)
+def test_unverified_event_records_only_allowlisted_reason_code(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+    reason_code: str,
+    expected_detail: str,
+) -> None:
+    def broken_create(*args: object) -> Invoice:
+        raise PayPalUncertain("LEAK_TEST_SECRET", reason_code=reason_code)
+
+    monkeypatch.setattr(port, "create_invoice_draft", broken_create)
+    proposal = service.propose_invoice(INVOICE)
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+
+    assert result["status"] == "unverified"
+    event = service.get(proposal["id"])["events"][-1]
+    assert event["event"] == "unverified"
+    assert event["detail"] == expected_detail
+    assert "LEAK_TEST_SECRET" not in str(event)
+    assert "UNTRUSTED_PROVIDER_REASON" not in str(event)
+
+
+def test_unexpected_unverified_event_uses_generic_local_reason(
+    service: ProposalService, port: FakePayPal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken_create(*args: object) -> Invoice:
+        raise ValueError("LEAK_TEST_SECRET")
+
+    monkeypatch.setattr(port, "create_invoice_draft", broken_create)
+    proposal = service.propose_invoice(INVOICE)
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+
+    assert result["status"] == "unverified"
+    event = service.get(proposal["id"])["events"][-1]
+    assert event["event"] == "unverified"
+    assert event["detail"] == "reason=local_unexpected_error"
+    assert "LEAK_TEST_SECRET" not in str(event)
+
+
+@pytest.mark.parametrize(
     "failure", [PayPalError("LEAK_TEST_SECRET", 403), PayPalUncertain("LEAK_TEST_SECRET")]
 )
 def test_verification_errors_hide_upstream_text(

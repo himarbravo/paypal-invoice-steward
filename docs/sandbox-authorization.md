@@ -24,7 +24,7 @@ An access token must contain the **exact** space-delimited permission `https://u
 - Missing invoicing scope, wrong app ID, invalid token type/expiry: **fail closed before any invoice request**.
 - A GET returning 401 may refresh its token once; no **automatic retry of POST**, including invoice creation, send, reminder or search calls.
 - A 403 is an authorization failure, never "no invoices".
-- Uncertain outcomes for sending/creating are controlled by the existing proposal-state and manual reconciliation process (#60), which is not fully verified here.
+- Uncertain outcomes for sending/creating are controlled by the existing proposal-state and manual reconciliation process (#60), which is not fully verified here. The local audit trail records only an allow-listed uncertainty category (for example, `provider_transport_failure` or `provider_readback_missing`), never the raw provider body, headers, OAuth material, invoice IDs or customer data. That category informs investigation; it never changes the no-duplicate, verify-before-retry rule. The live evidence is tracked in [#101](https://github.com/himarbravo/paypal-invoice-steward/issues/101).
 
 ## Verification and outstanding evidence
 

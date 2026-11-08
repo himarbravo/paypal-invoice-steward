@@ -18,6 +18,26 @@ from typing import Any, Protocol
 
 from .models import JSON, Invoice
 
+# The only uncertainty categories that may enter a proposal's public audit trail.
+# They describe our verification boundary, never a provider response or customer data.
+UNCERTAIN_REASON_CODES = frozenset(
+    {
+        "provider_outcome_unknown",
+        "provider_transport_failure",
+        "provider_server_error",
+        "provider_readback_invalid",
+        "provider_readback_missing",
+        "provider_identity_mismatch",
+        "provider_reference_search_invalid",
+        "provider_reference_changed",
+        "provider_create_response_invalid",
+        "approved_data_mismatch",
+        "provider_status_unknown",
+        "provider_send_unconfirmed",
+        "local_unexpected_error",
+    }
+)
+
 
 class PayPalError(Exception):
     """PayPal refused the request. The action did not happen."""
@@ -29,6 +49,18 @@ class PayPalError(Exception):
 
 class PayPalUncertain(Exception):
     """We do not know whether the action happened."""
+
+    def __init__(self, message: str = "", *, reason_code: str = "provider_outcome_unknown") -> None:
+        super().__init__(message)
+        self.reason_code = (
+            reason_code if reason_code in UNCERTAIN_REASON_CODES else "provider_outcome_unknown"
+        )
+
+
+def safe_uncertain_reason(error: PayPalUncertain) -> str:
+    """Return an allow-listed audit code without reflecting upstream text."""
+    reason = getattr(error, "reason_code", "provider_outcome_unknown")
+    return reason if reason in UNCERTAIN_REASON_CODES else "provider_outcome_unknown"
 
 
 class InvoiceInventoryIncomplete(PayPalUncertain):

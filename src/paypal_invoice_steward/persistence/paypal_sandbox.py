@@ -356,7 +356,10 @@ class SandboxPayPal:
                 method, path, json=json, params=params, headers=request_headers
             )
         except httpx.HTTPError as exc:
-            raise PayPalUncertain(f"No response from PayPal ({type(exc).__name__}).") from exc
+            raise PayPalUncertain(
+                f"No response from PayPal ({type(exc).__name__}).",
+                reason_code="provider_transport_failure",
+            ) from exc
 
         # Only replay safe GET requests after a token refresh. Invoicing POST
         # operations (including send/remind) must not be automatically replayed.
@@ -366,7 +369,10 @@ class SandboxPayPal:
                 method, path, json=json, params=params, headers=headers, _retry=False
             )
         if resp.status_code >= 500:
-            raise PayPalUncertain(f"PayPal answered with an error (HTTP {resp.status_code}).")
+            raise PayPalUncertain(
+                f"PayPal answered with an error (HTTP {resp.status_code}).",
+                reason_code="provider_server_error",
+            )
         if resp.status_code >= 400:
             raise PayPalError(self._error_message(resp), resp.status_code)
         if not resp.content:
@@ -464,8 +470,17 @@ class SandboxPayPal:
                 return None
             raise
         if not data or data.get("id") != invoice_id:
-            raise PayPalUncertain("PayPal invoice read-back identity could not be verified.")
-        return normalize_invoice(data)
+            raise PayPalUncertain(
+                "PayPal invoice read-back identity could not be verified.",
+                reason_code="provider_identity_mismatch",
+            )
+        try:
+            return normalize_invoice(data)
+        except PayPalUncertain as exc:
+            raise PayPalUncertain(
+                "PayPal invoice read-back cannot be verified.",
+                reason_code="provider_readback_invalid",
+            ) from exc
 
     def find_by_reference(self, reference: str) -> Invoice | None:
         data = self._request(
@@ -475,7 +490,10 @@ class SandboxPayPal:
             json={"invoice_number": reference},
         )
         if data is None:
-            raise PayPalUncertain("Invoice reference search returned no usable response.")
+            raise PayPalUncertain(
+                "Invoice reference search returned no usable response.",
+                reason_code="provider_reference_search_invalid",
+            )
         items, total, pages = data.get("items"), data.get("total_items"), data.get("total_pages")
         if (
             not isinstance(items, list)
@@ -485,31 +503,52 @@ class SandboxPayPal:
             or not 0 <= total <= 10
             or pages not in ({0, 1} if total == 0 else {1})
         ):
-            raise PayPalUncertain("Invoice reference search is incomplete or inconsistent.")
+            raise PayPalUncertain(
+                "Invoice reference search is incomplete or inconsistent.",
+                reason_code="provider_reference_search_invalid",
+            )
         matches: list[str] = []
         seen: set[str] = set()
         for item in items:
             if not isinstance(item, dict) or not isinstance(item.get("detail"), dict):
-                raise PayPalUncertain("Invoice reference search contains invalid records.")
+                raise PayPalUncertain(
+                    "Invoice reference search contains invalid records.",
+                    reason_code="provider_reference_search_invalid",
+                )
             invoice_id = item.get("id")
             if not isinstance(invoice_id, str):
-                raise PayPalUncertain("Invoice reference search has no usable identity.")
+                raise PayPalUncertain(
+                    "Invoice reference search has no usable identity.",
+                    reason_code="provider_reference_search_invalid",
+                )
             try:
                 _validate_invoice_id(invoice_id)
             except ValueError:
-                raise PayPalUncertain("Invoice reference search has an invalid identity.") from None
+                raise PayPalUncertain(
+                    "Invoice reference search has an invalid identity.",
+                    reason_code="provider_reference_search_invalid",
+                ) from None
             if invoice_id in seen or not isinstance(item["detail"].get("invoice_number"), str):
-                raise PayPalUncertain("Invoice reference search contains ambiguous records.")
+                raise PayPalUncertain(
+                    "Invoice reference search contains ambiguous records.",
+                    reason_code="provider_reference_search_invalid",
+                )
             seen.add(invoice_id)
             if item["detail"]["invoice_number"] == reference:
                 matches.append(invoice_id)
         if len(matches) > 1:
-            raise PayPalUncertain("More than one invoice matches the approved reference.")
+            raise PayPalUncertain(
+                "More than one invoice matches the approved reference.",
+                reason_code="provider_reference_search_invalid",
+            )
         if not matches:
             return None
         invoice = self.get_invoice(matches[0])
         if invoice is None or invoice.number != reference:
-            raise PayPalUncertain("Invoice reference changed or disappeared during read-back.")
+            raise PayPalUncertain(
+                "Invoice reference changed or disappeared during read-back.",
+                reason_code="provider_reference_changed",
+            )
         return invoice
 
     def create_invoice_draft(self, spec: JSON, reference: str) -> Invoice:
@@ -557,10 +596,16 @@ class SandboxPayPal:
         )
         invoice_id = data.get("id") or str(data.get("href", "")).rstrip("/").split("/")[-1]
         if not invoice_id:
-            raise PayPalUncertain("PayPal accepted the draft but did not return its id.")
+            raise PayPalUncertain(
+                "PayPal accepted the draft but did not return its id.",
+                reason_code="provider_create_response_invalid",
+            )
         invoice = self.get_invoice(invoice_id)
         if invoice is None:
-            raise PayPalUncertain("The new draft could not be read back from PayPal.")
+            raise PayPalUncertain(
+                "The new draft could not be read back from PayPal.",
+                reason_code="provider_readback_missing",
+            )
         return invoice
 
     def send_invoice(self, invoice_id: str) -> Invoice:
@@ -576,7 +621,10 @@ class SandboxPayPal:
         )
         invoice = self.get_invoice(invoice_id)
         if invoice is None:
-            raise PayPalUncertain("The invoice could not be read back after sending.")
+            raise PayPalUncertain(
+                "The invoice could not be read back after sending.",
+                reason_code="provider_readback_missing",
+            )
         return invoice
 
     def send_reminder(self, invoice_id: str, note: str) -> None:
