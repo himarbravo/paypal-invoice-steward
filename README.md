@@ -112,6 +112,7 @@ a permanent rejection of the 2.x API. The supported CI matrix remains Python 3.1
 | [docs/architecture.md](docs/architecture.md) | How it works inside |
 | [docs/project-structure.md](docs/project-structure.md) | Where everything is and where it goes |
 | [docs/demo-script.md](docs/demo-script.md) | Script for the under-3-minute demo video |
+| [docs/submission-checklist.md](docs/submission-checklist.md) | Judge-safe recording and submission checklist |
 | [docs/versioning.md](docs/versioning.md) | Versions and releases |
 | [docs/adr/](docs/adr/) | Architecture decisions |
 
