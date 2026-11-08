@@ -168,7 +168,7 @@ class DemoPayPal:
                 raise PayPalUncertain("No response from PayPal (simulated timeout).")
             return invoice
 
-    def send_reminder(self, invoice_id: str, note: str) -> None:
+    def send_reminder(self, invoice_id: str, _note: str) -> None:
         with self._lock:
             invoice = self._invoices.get(invoice_id)
             if invoice is None:

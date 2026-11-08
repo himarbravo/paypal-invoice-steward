@@ -21,8 +21,9 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
     """Age currently open invoices by due date, separately for each currency.
 
     This is a *current snapshot*, not a historical as-of ledger reconstruction.
-    The Invoice model has no payment allocations or remaining-balance field;
-    'amount' is therefore the source-provided amount, NOT a verified residual.
+    The Invoice model has no payment allocations. `amount` is the source invoice
+    face value; a verified PayPal `remaining_amount` is used only when its
+    explicit `balance_source` identifies a `due_amount` residual.
     """
     require_refund_reconciliation_clear(invoices)
     # Do not combine synthetic face amounts and PayPal residuals in one report.

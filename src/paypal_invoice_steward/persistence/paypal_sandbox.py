@@ -671,7 +671,7 @@ class SandboxPayPal:
             )
         return invoice
 
-    def send_reminder(self, invoice_id: str, note: str) -> None:
+    def send_reminder(self, invoice_id: str, _note: str) -> None:
         _validate_invoice_id(invoice_id)
         self._request(
             "POST",
