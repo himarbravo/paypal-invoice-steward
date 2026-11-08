@@ -1,6 +1,9 @@
 import sqlite3
 import threading
+from datetime import date
 from pathlib import Path
+
+import pytest
 
 from paypal_invoice_steward.persistence.store import SCHEMA_VERSION, SqliteProposalStore
 
@@ -35,6 +38,64 @@ def test_transition_is_compare_and_swap() -> None:
     assert store.transition("p1", ["executing"], "done", result={"ok": True})
     got = store.get("p1")
     assert got is not None and got["status"] == "done" and got["result"] == {"ok": True}
+
+
+def test_claim_with_event_commits_reservation_and_audit_together() -> None:
+    store = SqliteProposalStore()
+    proposal = _proposal()
+    store.insert(proposal)
+
+    assert store.claim_with_event(proposal, date.today(), "confirmed", "from pending")
+
+    current = store.get("p1")
+    assert current is not None and current["status"] == "executing"
+    assert [(event["event"], event["detail"]) for event in store.events("p1")] == [
+        ("confirmed", "from pending")
+    ]
+
+
+def test_claim_with_event_rolls_back_if_audit_insert_fails() -> None:
+    store = SqliteProposalStore()
+    proposal = _proposal()
+    store.insert(proposal)
+    store._db.execute(
+        "CREATE TRIGGER reject_event BEFORE INSERT ON events"
+        " BEGIN SELECT RAISE(ABORT, 'event rejected'); END"
+    )
+
+    with pytest.raises(sqlite3.IntegrityError, match="event rejected"):
+        store.claim_with_event(proposal, date.today(), "confirmed")
+
+    current = store.get("p1")
+    assert current is not None and current["status"] == "pending"
+    assert store.events("p1") == []
+
+
+def test_transition_with_event_rolls_back_if_audit_insert_fails() -> None:
+    store = SqliteProposalStore()
+    store.insert(_proposal())
+    store._db.execute(
+        "CREATE TRIGGER reject_event BEFORE INSERT ON events"
+        " BEGIN SELECT RAISE(ABORT, 'event rejected'); END"
+    )
+
+    with pytest.raises(sqlite3.IntegrityError, match="event rejected"):
+        store.transition_with_event("p1", ["pending"], "done", "done", result={"ok": True})
+
+    current = store.get("p1")
+    assert current is not None and current["status"] == "pending" and current["result"] is None
+    assert store.events("p1") == []
+
+
+def test_stale_transition_with_event_creates_no_event() -> None:
+    store = SqliteProposalStore()
+    store.insert(_proposal())
+
+    assert not store.transition_with_event("p1", ["executing"], "done", "done")
+
+    current = store.get("p1")
+    assert current is not None and current["status"] == "pending"
+    assert store.events("p1") == []
 
 
 def test_only_one_concurrent_transition_wins() -> None:

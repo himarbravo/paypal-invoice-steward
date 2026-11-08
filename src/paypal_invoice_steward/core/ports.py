@@ -125,6 +125,12 @@ class ProposalStore(Protocol):
         """
         ...
 
+    def claim_with_event(
+        self, proposal: JSON, reminder_cutoff: date, event: str, detail: str = ""
+    ) -> bool:
+        """Reserve an unchanged snapshot and persist its audit event together."""
+        ...
+
     def contact_hold(self, invoice_id: str) -> JSON | None: ...
 
     def change_contact_hold(
@@ -145,6 +151,19 @@ class ProposalStore(Protocol):
 
         Returns True for exactly one of any concurrent callers (compare and swap).
         """
+        ...
+
+    def transition_with_event(
+        self,
+        proposal_id: str,
+        from_statuses: Iterable[str],
+        to_status: str,
+        event: str,
+        detail: str = "",
+        result: JSON | None = None,
+        error: str | None = None,
+    ) -> bool:
+        """Compare-and-swap a state and persist its audit event in one transaction."""
         ...
 
     def log(self, proposal_id: str, event: str, detail: str = "") -> None: ...
