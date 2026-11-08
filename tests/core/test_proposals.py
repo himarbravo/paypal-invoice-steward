@@ -5,7 +5,11 @@ from datetime import timedelta
 import pytest
 
 from paypal_invoice_steward.core.models import Invoice, invoice_content_digest
-from paypal_invoice_steward.core.ports import PayPalError, PayPalUncertain
+from paypal_invoice_steward.core.ports import (
+    InvoiceInventoryIncomplete,
+    PayPalError,
+    PayPalUncertain,
+)
 from paypal_invoice_steward.core.proposals import (
     Conflict,
     HashMismatch,
@@ -37,6 +41,83 @@ def test_sandbox_reminder_discloses_provider_delivery_before_approval(
     assert port.sent_log == []
     service.policy = Policy(sandbox_writes_enabled=True)
     assert service.confirm(p["id"], p["payload_hash"])["status"] == "done"
+    assert port.sent_log == [("reminder", "INV1")]
+
+
+def test_sandbox_reminder_requires_full_inventory_before_proposal_and_send(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    port.mode = "sandbox"
+    reads = 0
+    original = port.list_invoices
+
+    def observe_complete_inventory() -> list[Invoice]:
+        nonlocal reads
+        reads += 1
+        return original()
+
+    monkeypatch.setattr(port, "list_invoices", observe_complete_inventory)
+    proposal = service.propose_reminder("INV1")
+    assert reads == 1
+    service.policy = Policy(sandbox_writes_enabled=True)
+    assert service.confirm(proposal["id"], proposal["payload_hash"])["status"] == "done"
+    assert reads == 2
+    assert port.sent_log == [("reminder", "INV1")]
+
+
+def test_sandbox_reminder_refuses_an_ambiguous_inventory_before_proposal(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    port.mode = "sandbox"
+    payment_id = "PAY-PRIVATE-123"
+
+    def ambiguous_inventory() -> list[Invoice]:
+        raise InvoiceInventoryIncomplete(payment_id)
+
+    monkeypatch.setattr(port, "list_invoices", ambiguous_inventory)
+    with pytest.raises(PolicyError, match="inventory") as exc_info:
+        service.propose_reminder("INV1")
+    assert payment_id not in str(exc_info.value)
+    assert service.list() == []
+    assert port.sent_log == []
+
+
+def test_sandbox_reminder_preflight_refuses_an_ambiguous_inventory(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    port.mode = "sandbox"
+    proposal = service.propose_reminder("INV1")
+    payment_id = "PAY-PRIVATE-123"
+
+    def ambiguous_inventory() -> list[Invoice]:
+        raise InvoiceInventoryIncomplete(payment_id)
+
+    monkeypatch.setattr(port, "list_invoices", ambiguous_inventory)
+    service.policy = Policy(sandbox_writes_enabled=True)
+    result = service.confirm(proposal["id"], proposal["payload_hash"])
+    assert result["status"] == "failed"
+    assert payment_id not in str(result)
+    assert payment_id not in str(service.get(proposal["id"])["events"])
+    assert port.sent_log == []
+
+
+def test_non_sandbox_reminder_does_not_require_a_full_inventory(
+    service: ProposalService,
+    port: FakePayPal,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable_inventory() -> list[Invoice]:
+        raise AssertionError("Only sandbox reminders require an inventory scan.")
+
+    monkeypatch.setattr(port, "list_invoices", unavailable_inventory)
+    proposal = service.propose_reminder("INV1")
+    assert service.confirm(proposal["id"], proposal["payload_hash"])["status"] == "done"
     assert port.sent_log == [("reminder", "INV1")]
 
 
