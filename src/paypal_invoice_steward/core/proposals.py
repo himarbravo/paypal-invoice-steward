@@ -530,9 +530,16 @@ class ProposalService:
                 result={"invoice": invoice.to_dict(self.today())},
             )
         elif invoice is not None:
-            self.store.log(proposal_id, "verify", f"invoice exists as {invoice.status}, not sent")
+            self.store.log_if_status(
+                proposal_id,
+                [status],
+                "verify",
+                f"invoice exists as {invoice.status}, not sent",
+            )
         else:
-            self.store.log(proposal_id, "verify", "no invoice with this reference yet")
+            self.store.log_if_status(
+                proposal_id, [status], "verify", "no invoice with this reference yet"
+            )
         return self._public(self._load(proposal_id))
 
     def dismiss(self, proposal_id: str) -> JSON:
