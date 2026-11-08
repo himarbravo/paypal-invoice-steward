@@ -27,7 +27,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory)
 
 def test_demo_mode_without_credentials() -> None:
     settings = load_settings()
-    assert settings.mode == "demo" and not settings.llm_enabled
+    assert settings.mode == "demo" and settings.anthropic_api_key is None
 
 
 def test_loads_dotenv_from_current_working_directory(tmp_path: Path) -> None:
@@ -179,7 +179,7 @@ def test_sandbox_llm_opt_in_preserves_read_only_paypal_default(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "synthetic-key")
     monkeypatch.setenv("STEWARD_SANDBOX_LLM", "enabled")
     settings = load_settings()
-    assert settings.llm_enabled
+    assert settings.anthropic_api_key == "synthetic-key"
     assert settings.sandbox_llm_enabled
     assert settings.mode == "sandbox"
     assert settings.sandbox_writes_enabled is False
@@ -219,5 +219,5 @@ def test_sandbox_with_no_external_model_stays_offline(
     monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
     settings = load_settings()
     assert settings.mode == "sandbox"
-    assert not settings.llm_enabled
+    assert settings.anthropic_api_key is None
     assert not settings.sandbox_llm_enabled

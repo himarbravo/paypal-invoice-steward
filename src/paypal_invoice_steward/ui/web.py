@@ -182,19 +182,19 @@ def create_app(
         return JSONResponse({"error": safe_paypal_error(exc)}, status_code=502)
 
     @app.exception_handler(RefundReconciliationRequired)
-    async def _refund_review(_: Request, exc: RefundReconciliationRequired) -> JSONResponse:
+    async def _refund_review(_: Request, _exc: RefundReconciliationRequired) -> JSONResponse:
         return JSONResponse({"error": REFUND_REVIEW_MESSAGE}, status_code=503)
 
     @app.exception_handler(BalanceUnverified)
-    async def _balance_unverified(_: Request, exc: BalanceUnverified) -> JSONResponse:
+    async def _balance_unverified(_: Request, _exc: BalanceUnverified) -> JSONResponse:
         return JSONResponse({"error": BALANCE_UNVERIFIED_MESSAGE}, status_code=503)
 
     @app.exception_handler(InvoiceInventoryIncomplete)
-    async def _inventory_incomplete(_: Request, exc: InvoiceInventoryIncomplete) -> JSONResponse:
+    async def _inventory_incomplete(_: Request, _exc: InvoiceInventoryIncomplete) -> JSONResponse:
         return JSONResponse({"error": INCOMPLETE_INVENTORY_MESSAGE}, status_code=503)
 
     @app.exception_handler(PayPalUncertain)
-    async def _paypal_uncertain(_: Request, exc: PayPalUncertain) -> JSONResponse:
+    async def _paypal_uncertain(_: Request, _exc: PayPalUncertain) -> JSONResponse:
         return JSONResponse(
             {"error": "PayPal outcome unknown; verify before retrying."}, status_code=502
         )

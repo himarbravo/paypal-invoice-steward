@@ -45,10 +45,6 @@ class Settings:
     operator_id: str | None = None
 
     @property
-    def llm_enabled(self) -> bool:
-        return bool(self.anthropic_api_key)
-
-    @property
     def policy(self) -> Policy:
         return Policy(
             max_invoice_amount=self.max_invoice_amount,

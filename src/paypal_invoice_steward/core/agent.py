@@ -433,7 +433,7 @@ class OfflineAgent:
     def __init__(self, service: ProposalService, port: PayPalPort, today: Today) -> None:
         self.service, self.port, self.today = service, port, today
 
-    def run(self, session_id: str, user_text: str) -> AgentReply:
+    def run(self, _session_id: str, user_text: str) -> AgentReply:
         toolbox = Toolbox(self.service, self.port, self.today)
         text = user_text.lower()
 
