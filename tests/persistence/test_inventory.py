@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,56 @@ def test_missing_records_persist_until_observed_again(tmp_path: Path) -> None:
     assert len(restarted.list_invoices()) == 4
     assert restarted.inventory_status()["missing_ids"] == []
     assert not restarted.inventory_status()["stale"]
+
+
+def test_financial_inventory_requires_two_consistent_walks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    port = FakePayPal()
+    reader = ObservedPayPal(port, SqliteProposalStore(), "app")
+    original, calls = port.list_invoices, 0
+
+    def counted() -> list:
+        nonlocal calls
+        calls += 1
+        return original()
+
+    monkeypatch.setattr(port, "list_invoices", counted)
+    assert len(reader.list_invoices()) == 4
+    assert calls == 2
+    assert reader.inventory_status()["status"] == "observed"
+
+
+@pytest.mark.parametrize("change", ["replace_id", "change_balance", "change_status"])
+def test_changed_second_walk_blocks_financial_inventory_without_persisting_fingerprint(
+    monkeypatch: pytest.MonkeyPatch, change: str
+) -> None:
+    port = FakePayPal()
+    reader = ObservedPayPal(port, SqliteProposalStore(), "app")
+    original, calls = port.list_invoices, 0
+
+    def changed() -> list:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            invoice = port.invoices["INV1"]
+            if change == "replace_id":
+                del port.invoices["INV1"]
+                port.invoices["INV9"] = replace(invoice, id="INV9", number="N-9")
+            elif change == "change_balance":
+                port.invoices["INV1"] = replace(invoice, amount=invoice.amount + 1)
+            else:
+                port.invoices["INV1"] = replace(invoice, status="paid")
+        return original()
+
+    monkeypatch.setattr(port, "list_invoices", changed)
+    with pytest.raises(InvoiceInventoryIncomplete) as exc_info:
+        reader.list_invoices()
+    assert "INV1" not in str(exc_info.value)
+    state = reader.inventory_status()
+    assert state["status"] == "failed" and state["stale"]
+    persisted = reader.store.inventory(reader.source)
+    assert "fingerprint" not in persisted and "Customer 1" not in str(persisted)
 
 
 def test_failure_keeps_last_success_but_never_returns_cached_data(

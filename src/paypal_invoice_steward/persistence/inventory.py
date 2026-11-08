@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import threading
 import uuid
 from datetime import UTC, datetime
@@ -10,6 +11,37 @@ from datetime import UTC, datetime
 from ..core.models import JSON, Invoice
 from ..core.ports import InvoiceInventoryIncomplete, PayPalPort
 from .store import SqliteProposalStore
+
+
+def _inventory_fingerprint(invoices: list[Invoice]) -> bytes:
+    """Hash one normalized inventory only for a transient consistency comparison.
+
+    This contains customer and invoice fields solely in process memory.  It is
+    deliberately neither returned nor written to the observation journal.
+    """
+    records = [
+        {
+            "id": invoice.id,
+            "number": invoice.number,
+            "customer_name": invoice.customer_name,
+            "customer_email": invoice.customer_email,
+            "amount": invoice.amount,
+            "currency": invoice.currency,
+            "status": invoice.status,
+            "issued": invoice.issued.isoformat(),
+            "due": invoice.due.isoformat(),
+            "paid": invoice.paid.isoformat() if invoice.paid else None,
+            "remaining_amount": invoice.remaining_amount,
+            "balance_source": invoice.balance_source,
+            "payment_origin": invoice.payment_origin,
+            "provider_status": invoice.provider_status,
+            "content_digest": invoice.content_digest,
+            "provider_payment_ids": sorted(invoice.provider_payment_ids),
+        }
+        for invoice in sorted(invoices, key=lambda invoice: invoice.id)
+    ]
+    encoded = json.dumps(records, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(encoded.encode()).digest()
 
 
 class ObservedPayPal:
@@ -45,6 +77,14 @@ class ObservedPayPal:
             ids = [invoice.id for invoice in invoices]
             if len(set(ids)) != len(ids):
                 raise InvoiceInventoryIncomplete("Duplicate invoice identities.")
+            fingerprint = _inventory_fingerprint(invoices)
+            verified = self.port.list_invoices()
+            verified_ids = [invoice.id for invoice in verified]
+            if len(set(verified_ids)) != len(verified_ids):
+                raise InvoiceInventoryIncomplete("Duplicate invoice identities.")
+            if fingerprint != _inventory_fingerprint(verified):
+                raise InvoiceInventoryIncomplete("Invoice inventory changed during verification.")
+            invoices, ids = verified, verified_ids
         except Exception:
             self.store.observe_inventory(self.source, attempt)
             raise
