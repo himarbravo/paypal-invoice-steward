@@ -26,6 +26,7 @@ from datetime import date, datetime, timedelta
 
 from .models import JSON, BalanceUnverified, Invoice, invoice_content_digest, invoice_total
 from .ports import (
+    InvoiceInventoryIncomplete,
     PayPalError,
     PayPalPort,
     PayPalUncertain,
@@ -118,6 +119,13 @@ class ProposalService:
         self.store = store
         self.policy = policy or Policy()
         self.today = today
+
+    def _reminder_invoice(self, invoice_id: str) -> Invoice | None:
+        """Use a complete current sandbox inventory before any reminder decision."""
+        if self.port.mode != "sandbox":
+            return self.port.get_invoice(invoice_id)
+        matches = [invoice for invoice in self.port.list_invoices() if invoice.id == invoice_id]
+        return matches[0] if len(matches) == 1 else None
 
     # -- creating proposals (what the agent may do) -----------------------------
 
@@ -217,7 +225,12 @@ class ProposalService:
         if hold and hold["active"]:
             self.store.log(f"hold:{invoice_id}", "reminder_blocked", "active local contact hold")
             raise PolicyError("Invoice has an active local contact hold; reminder blocked.")
-        invoice = self.port.get_invoice(str(invoice_id))
+        try:
+            invoice = self._reminder_invoice(str(invoice_id))
+        except InvoiceInventoryIncomplete:
+            raise PolicyError(
+                "PayPal invoice inventory cannot be verified; no reminder may be prepared."
+            ) from None
         if invoice is None:
             raise PolicyError(f"Invoice '{invoice_id}' does not exist.")
         if invoice.status != "open" or invoice.provider_status in {"SCHEDULED", "PAYMENT_PENDING"}:
@@ -468,7 +481,12 @@ class ProposalService:
             )
         # The approved text is not safe after a refund, payment or changed balance.
         # Preflight runs inside the compare-and-swap execution slot, before any POST.
-        fresh = self.port.get_invoice(payload["invoice_id"])
+        try:
+            fresh = self._reminder_invoice(payload["invoice_id"])
+        except InvoiceInventoryIncomplete:
+            raise ReminderPreflightBlocked(
+                "Reminder blocked: PayPal invoice inventory cannot be verified. Nothing sent."
+            ) from None
         if (
             fresh is None
             or fresh.status != "open"

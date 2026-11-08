@@ -57,6 +57,7 @@ class Invoice:
     payment_origin: str = "unknown"  # PayPal-reported, not independently settled
     provider_status: str | None = None
     content_digest: str | None = None  # normalized lines/note; never exposed to the UI or LLM
+    provider_payment_ids: tuple[str, ...] = ()  # adapter-only correlation hints; never public
 
     def receivable_amount(self) -> float:
         """Return source-backed residual, never an invoice face-value fallback for PayPal."""
@@ -79,7 +80,7 @@ class Invoice:
         data: JSON = {
             key: (value.isoformat() if isinstance(value, date) else value)
             for key, value in asdict(self).items()
-            if key != "content_digest"
+            if key not in {"content_digest", "provider_payment_ids"}
         }
         if today is not None:
             data["days_overdue"] = self.days_overdue(today)

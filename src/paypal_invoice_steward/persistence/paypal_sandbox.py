@@ -174,6 +174,36 @@ def _payment_provenance(raw: JSON, status: str) -> tuple[str, date | None]:
     return origin, paid_on
 
 
+def _paypal_payment_ids(raw: JSON) -> tuple[str, ...]:
+    """Return only internally usable PayPal receipt IDs from an unambiguous record."""
+    payments = raw.get("payments")
+    if payments is None:
+        return ()
+    if not isinstance(payments, dict) or not isinstance(payments.get("transactions", []), list):
+        return ()
+    identifiers: list[str] = []
+    for row in payments.get("transactions", []):
+        if not isinstance(row, dict) or row.get("type") not in {"PAYPAL", "EXTERNAL"}:
+            return ()
+        if row["type"] != "PAYPAL":
+            continue
+        payment_id = row.get("payment_id")
+        if not isinstance(payment_id, str) or not 1 <= len(payment_id) <= 22:
+            return ()
+        identifiers.append(payment_id)
+    return tuple(identifiers) if len(identifiers) == len(set(identifiers)) else ()
+
+
+def _reject_duplicate_paypal_payment_ids(invoices: list[Invoice]) -> None:
+    """A receipt ID on two invoices is ambiguous; do not publish financial data."""
+    seen: set[str] = set()
+    for invoice in invoices:
+        for payment_id in invoice.provider_payment_ids:
+            if payment_id in seen:
+                raise InvoiceInventoryIncomplete("PayPal payment evidence is ambiguous.")
+            seen.add(payment_id)
+
+
 def normalize_invoice(raw: JSON) -> Invoice:
     """Turn a PayPal v2 invoice object into our flat Invoice."""
     detail = raw.get("detail") or {}
@@ -241,6 +271,7 @@ def normalize_invoice(raw: JSON) -> Invoice:
         payment_origin=origin,
         provider_status=raw_status,
         content_digest=_provider_content_digest(raw, currency),
+        provider_payment_ids=_paypal_payment_ids(raw),
     )
 
 
@@ -458,6 +489,7 @@ class SandboxPayPal:
                     raise InvoiceInventoryIncomplete(
                         "Invoice count differs from the declared total."
                     )
+                _reject_duplicate_paypal_payment_ids(invoices)
                 return invoices
             page += 1
 

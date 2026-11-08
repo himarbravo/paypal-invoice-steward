@@ -785,6 +785,23 @@ def test_duplicate_invoice_id_between_pages_fails_closed() -> None:
         make(token_then(inventory_handler(pages, 2))).list_invoices()
 
 
+def test_duplicate_paypal_payment_id_across_invoices_fails_closed() -> None:
+    payment_id = "PAY-PRIVATE-123"
+
+    def paid_invoice(n: int) -> JSON:
+        return {
+            **listed_invoice(n),
+            "status": "PAID",
+            "payments": {"transactions": [{"type": "PAYPAL", "payment_id": payment_id}]},
+        }
+
+    with pytest.raises(InvoiceInventoryIncomplete) as exc_info:
+        make(
+            token_then(inventory_handler({1: [paid_invoice(1), paid_invoice(2)]}, 2))
+        ).list_invoices()
+    assert payment_id not in str(exc_info.value)
+
+
 @pytest.mark.parametrize("bad_row", [None, {"id": ""}, {"id": 23}])
 def test_invalid_invoice_record_fails_closed(bad_row: object) -> None:
     handler = inventory_handler({1: [bad_row]}, 1)
@@ -845,6 +862,7 @@ def test_partial_external_payment_keeps_face_separate_from_paypal_due_amount() -
     assert inv.balance_source == "paypal_due_amount"
     assert inv.receivable_amount() == 250.75
     assert inv.payment_origin == "external"
+    assert inv.provider_payment_ids == ()
     assert inv.status == "open"
     assert inv.paid is None
     assert inv.provider_status == "PARTIALLY_PAID"
@@ -868,6 +886,7 @@ def test_reported_due_amount_is_not_recomputed_or_double_allocated() -> None:
     assert inv.amount == 450
     assert inv.remaining_amount == 350
     assert inv.payment_origin == "ambiguous"
+    assert inv.provider_payment_ids == ()
     assert inv.paid is None
     assert inv.receivable_amount() == 350
 
@@ -877,6 +896,21 @@ def test_paid_without_transaction_date_never_invents_due_date_as_payment_date() 
     assert inv.paid is None
     assert inv.payment_origin == "paypal"
     assert inv.due == date(2026, 10, 15)
+
+
+def test_payment_ids_stay_internal_to_the_provider_adapter() -> None:
+    payment_id = "PAY-PRIVATE-123"
+    inv = normalize_invoice(
+        {
+            **RAW,
+            "status": "PAID",
+            "payments": {"transactions": [{"type": "PAYPAL", "payment_id": payment_id}]},
+        }
+    )
+    assert inv.provider_payment_ids == (payment_id,)
+    public = inv.to_dict()
+    assert "provider_payment_ids" not in public
+    assert payment_id not in str(public)
 
 
 @pytest.mark.parametrize(
