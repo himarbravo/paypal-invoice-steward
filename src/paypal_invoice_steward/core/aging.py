@@ -9,6 +9,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from .models import JSON, BalanceUnverified, Invoice, require_refund_reconciliation_clear
 
 BUCKETS = ("not_due", "1_30", "31_60", "61_90", "91_plus")
+PAYPAL_DUE_AMOUNT_BASIS = "PayPal due_amount residuals"
+SYNTHETIC_FACE_AMOUNT_BASIS = "current open invoice face amounts"
 
 
 def _cents(value: float) -> int:
@@ -32,9 +34,9 @@ def receivables_aging(invoices: list[Invoice], as_of: date) -> JSON:
     if len(basis_kinds) > 1:
         raise BalanceUnverified("Mixed invoice balance sources cannot form an aging report.")
     basis = (
-        "PayPal due_amount residuals"
+        PAYPAL_DUE_AMOUNT_BASIS
         if basis_kinds == {"paypal_due_amount"}
-        else "current open invoice face amounts"
+        else SYNTHETIC_FACE_AMOUNT_BASIS
     )
     totals: dict[str, dict[str, int]] = defaultdict(lambda: {b: 0 for b in BUCKETS})
     rows: list[JSON] = []
