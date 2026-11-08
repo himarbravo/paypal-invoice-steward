@@ -157,6 +157,20 @@ class SqliteProposalStore:
         return [data for data in map(self._row, rows) if data is not None]
 
     def claim(self, proposal: JSON, reminder_cutoff: date) -> bool:
+        return self._claim(proposal, reminder_cutoff)
+
+    def claim_with_event(
+        self, proposal: JSON, reminder_cutoff: date, event: str, detail: str = ""
+    ) -> bool:
+        return self._claim(proposal, reminder_cutoff, event, detail)
+
+    def _claim(
+        self,
+        proposal: JSON,
+        reminder_cutoff: date,
+        event: str | None = None,
+        detail: str = "",
+    ) -> bool:
         # BEGIN IMMEDIATE serializes readers that intend to write, including
         # separate connections/processes; a per-instance lock alone cannot do so.
         with self._lock, self._db:
@@ -190,6 +204,11 @@ class SqliteProposalStore:
                 " WHERE id = ?",
                 (_now(), proposal["id"]),
             )
+            if event is not None:
+                self._db.execute(
+                    "INSERT INTO events (proposal_id, event, detail, at) VALUES (?, ?, ?, ?)",
+                    (proposal["id"], event, detail, _now()),
+                )
             return True
 
     def transition(
@@ -202,9 +221,42 @@ class SqliteProposalStore:
     ) -> bool:
         """Move a proposal to a new status only if it is currently in one of
         `from_statuses`. Returns True for exactly one of any concurrent callers."""
+        return self._transition(proposal_id, from_statuses, to_status, result=result, error=error)
+
+    def transition_with_event(
+        self,
+        proposal_id: str,
+        from_statuses: Iterable[str],
+        to_status: str,
+        event: str,
+        detail: str = "",
+        result: JSON | None = None,
+        error: str | None = None,
+    ) -> bool:
+        """Move a proposal and record the corresponding event in one transaction."""
+        return self._transition(
+            proposal_id,
+            from_statuses,
+            to_status,
+            event=event,
+            detail=detail,
+            result=result,
+            error=error,
+        )
+
+    def _transition(
+        self,
+        proposal_id: str,
+        from_statuses: Iterable[str],
+        to_status: str,
+        event: str | None = None,
+        detail: str = "",
+        result: JSON | None = None,
+        error: str | None = None,
+    ) -> bool:
         allowed = [*from_statuses]
         marks = ",".join("?" for _ in allowed)
-        with self._lock:
+        with self._lock, self._db:
             cur = self._db.execute(
                 "UPDATE proposals SET status = ?, result = COALESCE(?, result),"
                 f" error = ?, updated_at = ? WHERE id = ? AND status IN ({marks})",
@@ -217,8 +269,14 @@ class SqliteProposalStore:
                     *allowed,
                 ),
             )
-            self._db.commit()
-            return cur.rowcount == 1
+            if cur.rowcount != 1:
+                return False
+            if event is not None:
+                self._db.execute(
+                    "INSERT INTO events (proposal_id, event, detail, at) VALUES (?, ?, ?, ?)",
+                    (proposal_id, event, detail, _now()),
+                )
+            return True
 
     def log(self, proposal_id: str, event: str, detail: str = "") -> None:
         with self._lock:

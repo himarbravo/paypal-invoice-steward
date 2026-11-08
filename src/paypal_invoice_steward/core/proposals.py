@@ -335,7 +335,10 @@ class ProposalService:
                 "to permit approved outbound actions."
             )
         cutoff = self.today() - timedelta(days=self.policy.reminder_cooldown_days)
-        if not self.store.claim(proposal, cutoff):
+        detail = f"from {status}"
+        if self.policy.operator_id:
+            detail += f"; operator={self.policy.operator_id}"
+        if not self.store.claim_with_event(proposal, cutoff, "confirmed", detail):
             current = self.store.get(proposal_id)
             if (
                 current
@@ -352,33 +355,42 @@ class ProposalService:
                 "contact hold or cooldown."
             )
 
-        detail = f"from {status}"
-        if self.policy.operator_id:
-            detail += f"; operator={self.policy.operator_id}"
-        self.store.log(proposal_id, "confirmed", detail)
         try:
             result = self._execute(proposal)
         except ReminderPreflightBlocked as exc:
             message = str(exc)
-            self.store.transition(proposal_id, [EXECUTING], FAILED, error=message)
-            self.store.log(proposal_id, "blocked", message)
+            self.store.transition_with_event(
+                proposal_id, [EXECUTING], FAILED, "blocked", message, error=message
+            )
         except PayPalError as exc:
             message = safe_paypal_error(exc)
-            self.store.transition(proposal_id, [EXECUTING], FAILED, error=message)
-            self.store.log(proposal_id, "failed", message)
+            self.store.transition_with_event(
+                proposal_id, [EXECUTING], FAILED, "failed", message, error=message
+            )
         except PayPalUncertain as exc:
             message = "PayPal outcome unknown; verify before retrying."
-            self.store.transition(proposal_id, [EXECUTING], UNVERIFIED, error=message)
-            self.store.log(proposal_id, "unverified", f"reason={safe_uncertain_reason(exc)}")
+            self.store.transition_with_event(
+                proposal_id,
+                [EXECUTING],
+                UNVERIFIED,
+                "unverified",
+                f"reason={safe_uncertain_reason(exc)}",
+                error=message,
+            )
         except Exception as exc:  # any surprise means "we don't know"
             message = (
                 f"Unexpected error ({type(exc).__name__}). Outcome unknown; verify before retrying."
             )
-            self.store.transition(proposal_id, [EXECUTING], UNVERIFIED, error=message)
-            self.store.log(proposal_id, "unverified", "reason=local_unexpected_error")
+            self.store.transition_with_event(
+                proposal_id,
+                [EXECUTING],
+                UNVERIFIED,
+                "unverified",
+                "reason=local_unexpected_error",
+                error=message,
+            )
         else:
-            self.store.transition(proposal_id, [EXECUTING], DONE, result=result)
-            self.store.log(proposal_id, "done", "")
+            self.store.transition_with_event(proposal_id, [EXECUTING], DONE, "done", result=result)
         return self._public(self._load(proposal_id))
 
     @staticmethod
@@ -508,15 +520,15 @@ class ProposalService:
         except (PayPalError, PayPalUncertain):
             raise Conflict("Could not check PayPal right now. Verify again later.") from None
         if invoice is not None and self._invoice_is_sent(invoice):
-            recovered = self.store.transition(
+            event = "recovered" if status == EXECUTING else "verified"
+            self.store.transition_with_event(
                 proposal_id,
                 [UNVERIFIED, EXECUTING],
                 DONE,
+                event,
+                f"found {invoice.number} as {invoice.status}",
                 result={"invoice": invoice.to_dict(self.today())},
             )
-            if recovered:
-                event = "recovered" if status == EXECUTING else "verified"
-                self.store.log(proposal_id, event, f"found {invoice.number} as {invoice.status}")
         elif invoice is not None:
             self.store.log(proposal_id, "verify", f"invoice exists as {invoice.status}, not sent")
         else:
@@ -527,11 +539,10 @@ class ProposalService:
         proposal = self.store.get(proposal_id)
         if proposal is None:
             raise NotFound("Proposal not found.")
-        if not self.store.transition(proposal_id, [PENDING], DISMISSED):
+        if not self.store.transition_with_event(proposal_id, [PENDING], DISMISSED, "dismissed"):
             raise Conflict(
                 f"Only pending proposals can be dismissed (this one is {proposal['status']})."
             )
-        self.store.log(proposal_id, "dismissed", "")
         return self._public(self._load(proposal_id))
 
     # -- reading ----------------------------------------------------------------

@@ -585,6 +585,25 @@ def test_audit_trail_records_steps(service: ProposalService) -> None:
     assert events[0] == "proposed" and "confirmed" in events and events[-1] == "done"
 
 
+def test_confirm_persists_attribution_before_provider_write(
+    service: ProposalService, port: FakePayPal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service.policy = Policy(operator_id="demo-approver")
+    proposal = service.propose_invoice(INVOICE)
+    original = port.create_invoice_draft
+
+    def create_after_audit(spec: dict[str, object], reference: str) -> Invoice:
+        stored = service.get(proposal["id"])
+        assert stored["status"] == "executing"
+        assert stored["events"][-1]["event"] == "confirmed"
+        assert stored["events"][-1]["detail"] == "from pending; operator=demo-approver"
+        return original(spec, reference)
+
+    monkeypatch.setattr(port, "create_invoice_draft", create_after_audit)
+
+    assert service.confirm(proposal["id"], proposal["payload_hash"])["status"] == "done"
+
+
 def test_unknown_status_after_create_is_unverified_not_done(
     service: ProposalService, port: FakePayPal
 ) -> None:
