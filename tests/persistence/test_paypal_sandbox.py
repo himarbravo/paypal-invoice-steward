@@ -398,6 +398,7 @@ def test_find_by_reference_matches_exact_number() -> None:
         {},
         {"items": []},
         {"items": None, "total_items": 0, "total_pages": 0},
+        {"total_items": 1, "total_pages": 1},
         {"items": [], "total_items": True, "total_pages": 1},
         {"items": [], "total_items": 1, "total_pages": 1},
         {"items": [RAW], "total_items": 1, "total_pages": 2},
@@ -442,15 +443,17 @@ def test_uncertain_search_cannot_be_used_as_permission_to_create(body: object) -
     assert paths == ["/v2/invoicing/search-invoices"] * 2
 
 
-@pytest.mark.parametrize("pages", [0, 1])
-def test_verified_empty_search_is_absence(pages: int) -> None:
-    port = make(
-        token_then(
-            lambda r: httpx.Response(
-                200, json={"items": [], "total_items": 0, "total_pages": pages}
-            )
-        )
-    )
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"items": [], "total_items": 0, "total_pages": 0},
+        {"items": [], "total_items": 0, "total_pages": 1},
+        {"total_items": 0, "total_pages": 0},
+        {"total_items": 0, "total_pages": 1},
+    ],
+)
+def test_verified_empty_search_is_absence(body: JSON) -> None:
+    port = make(token_then(lambda r: httpx.Response(200, json=body)))
     assert port.find_by_reference("STW-1") is None
 
 
