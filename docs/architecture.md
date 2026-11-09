@@ -21,6 +21,9 @@ Invoice Steward reads invoices from PayPal, forecasts when they will be paid, an
 1. A chat message goes to the assistant (`LLMAgent` with Claude, or `OfflineAgent`).
    Claude receives a separate minimal tool-result projection with safe invoice IDs,
    amounts, dates and statuses; it omits untrusted customer text and proposal summaries.
+   Before a reply reaches the browser, known invoice and proposal IDs in it are replaced
+   with the invoice number or proposal reference the interface shows; those labels are
+   never sent to Claude.
    The offline assistant and human interface retain their richer data views. Prompt
    instructions are not a security boundary; the tool and approval controls are.
 2. The assistant can only call read tools and `propose_*` tools. Proposing validates the policy and stores a *pending* proposal with a payload hash; nothing is sent.

@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- Prepare Claude's Sandbox reminders reliably: the model is offered no custom note there (PayPal writes the email) and a note it sends anyway is not forwarded; the server still rejects custom Sandbox notes. Replace known invoice and proposal IDs in Claude's replies with the invoice number or proposal reference shown in the interface (#166).
 - Require two matching complete invoice inventory walks before exposing financial data, rejecting same-count concurrent state changes without persisting customer or invoice snapshots (#153).
 - Reject Sandbox financial inventory and reminder preparation/preflight when one PayPal payment receipt ID is reported on more than one invoice; keep receipt IDs out of public product data (#151).
 - Reject a read-only verification observation if a concurrent confirmation has already completed the proposal, keeping the audit order coherent (#149).

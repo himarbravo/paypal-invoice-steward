@@ -60,7 +60,7 @@ public repository, public video or test fixtures.
 
 ## Safety model
 
-**Sandbox reminders use PayPal-generated email content.** Custom notes are unsupported; the approval card explains this and warns that the local cooldown does not control PayPal automatic reminders or other contact. Send/remind requests explicitly request no additional CC recipients. Scheduled and payment-pending invoices cannot be reminded. See [external reminder policy](docs/external-reminder-policy.md) for operator checks and the provider verification still required.
+**Sandbox reminders use PayPal-generated email content.** Custom notes are unsupported, so Claude is not offered a note field in Sandbox; the approval card explains this and warns that the local cooldown does not control PayPal automatic reminders or other contact. Send/remind requests explicitly request no additional CC recipients. Scheduled and payment-pending invoices cannot be reminded. See [external reminder policy](docs/external-reminder-policy.md) for operator checks and the provider verification still required.
 
 **Invoice reads are on demand.** The browser shows the last completed page walk and missing-record count. Failed reads return no cached figures; previously observed invoices that disappear block financial totals pending investigation. This app-visible observation is not an atomic snapshot or a merchant ledger. No webhooks or continuous sync are implemented. See [inventory scope and freshness](docs/invoice-inventory-integrity.md).
 
