@@ -33,8 +33,21 @@ Demo mode uses a built-in fake PayPal with five customers and 23 invoices, so ev
 ## Run it against the PayPal sandbox, with Claude
 
 1. Create a **Sandbox** app in the [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/) (Apps & Credentials) and copy its client ID and secret. Invoicing needs a sandbox **Business** account.
-2. `cp .env.example .env` and fill in `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and, optionally, `ANTHROPIC_API_KEY`. Run the app from that same directory: it loads only that working directory's `.env`.
-3. `paypal-invoice-steward`
+2. Give that Sandbox Business account a few **fictional** open invoices, for example by logging in to the Sandbox site as the business account and using its invoicing page. Use more than one currency (EUR, USD, GBP) if you want to see separate forecasts, and give one or two a due date within 3 days: reminders are only prepared for invoices that are overdue or due within 3 days, and this app cannot create overdue invoices. A fresh Sandbox with no invoices shows an empty overview.
+3. Install as in demo mode, then create your local configuration in the repository folder:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Fill in `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`. To use Claude, also set `ANTHROPIC_API_KEY` **and** `STEWARD_SANDBOX_LLM=enabled` (remove the leading `#` from that line; explained below); a key without that line stops startup with `Sandbox external AI requires STEWARD_SANDBOX_LLM=enabled`. Without a key, the rule-based assistant is used.
+4. Start the app from that same folder (it loads only that working directory's `.env`) and open http://127.0.0.1:8000:
+
+   ```bash
+   paypal-invoice-steward
+   ```
+
+5. Check the badges at the top right: **PayPal sandbox**, **Claude enabled (chat sent to external AI)** (or **Offline assistant**) and **Read-only: outbound sends blocked**. Ask, for example, "Prepare reminders for every invoice due within 3 days": the reminder cards stay pending, and sending them is blocked until you opt into Sandbox writes (below).
 
 The PayPal client only accepts `https://api-m.sandbox.paypal.com` (an optional trailing slash is allowed), never a hostname that merely contains `sandbox`. Incomplete credentials or an unrecognized `STEWARD_MODE` cause startup to fail instead of silently showing fake data. The MVP connects to one merchant's own sandbox app credentials; third-party merchant onboarding is not implemented. On each new OAuth token, it requires the documented invoicing permission, a Bearer token and an app ID; optional `PAYPAL_APP_ID` checks that application ID. This **does not prove the business account's merchant identity** or establish separate PayPal read/write invoicing scopes. See [sandbox authorization boundary](docs/sandbox-authorization.md).
 
