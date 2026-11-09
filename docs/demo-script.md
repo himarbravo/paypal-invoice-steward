@@ -46,34 +46,38 @@ documented in [#101](https://github.com/himarbravo/paypal-invoice-steward/issues
    The project has no hosted-demo authentication boundary.
 7. Rehearse with **Dismiss**, never **Send invoice**: each approved send creates a real
    Sandbox invoice and changes the figures on screen.
-8. Check the status line before recording: it must identify **PayPal sandbox** and
-   Claude accurately.
+8. Check the status badges at the top right before recording: they must read **PayPal
+   sandbox** and **Claude enabled (chat sent to external AI)**.
 
 ## Prompts to paste
 
-The prompts below were verified against a real Sandbox merchant. Two details matter:
-the invoice prompt must include a customer email (the assistant will not invent one),
-and reminder prompts must say "no custom note" because Sandbox rejects custom notes
-(PayPal writes the reminder text). Asking for plain text avoids unrendered Markdown in
-the chat.
+The prompts below were verified against a real Sandbox merchant with Claude. The invoice
+prompt must include a customer email: the assistant will not invent one. No extra
+wording is needed for the rest: in Sandbox, Claude is not offered a reminder note
+(PayPal writes the reminder email), known PayPal IDs are replaced with the invoice
+number before a reply is shown, and the chat renders simple formatting safely.
 
 Summary and reminders:
 
 ```text
-Give me a short summary of what is due soon and my cash flow forecast by currency. Then prepare reminders for every invoice due within 3 days, with no custom note because PayPal writes the text. Do not send anything. Never quote PayPal invoice IDs or proposal IDs. Use plain text only: short sentences, no tables, no bold, no asterisks, no bullet symbols.
+Give me a short summary of what is due soon and my cash flow forecast by currency. Then prepare reminders for every invoice due within 3 days.
 ```
 
 New invoice:
 
 ```text
-Prepare, but do not send, an invoice for Lumen Architects, billing@lumenarchitects.example: 1 item, Floor plan review, 60 EUR, due in 14 days. Never quote PayPal invoice IDs or proposal IDs. Use plain text only: short sentences, no tables, no bold, no asterisks, no bullet symbols.
+Prepare an invoice for Lumen Architects, billing@lumenarchitects.example: 1 item, Floor plan review, 60 EUR, due in 14 days.
 ```
+
+Each approved send leaves a real invoice in the Sandbox. If a previous rehearsal already
+created the Lumen invoice, cancel it in the Sandbox or use another fictional customer so
+the table does not show it twice.
 
 ## 2:40 recording plan
 
 ### 0:00–0:15 — problem and promise
 
-Show the dashboard of the real instance, status line visible.
+Show the dashboard of the real instance, status badges visible.
 
 > "Small businesses lose hours chasing invoices and guessing their cash. PayPal Invoice
 > Steward connects PayPal Invoicing and Claude so an AI can analyze and prepare the
@@ -81,7 +85,7 @@ Show the dashboard of the real instance, status line visible.
 
 ### 0:15–0:40 — live PayPal Sandbox read
 
-Show the per-currency totals, the forecast charts and the invoice table. Do not zoom
+Show the per-currency cards, the forecast charts and the invoice table. Do not zoom
 into customer data.
 
 > "This is a live read from one PayPal Sandbox merchant. The app validates the complete
@@ -98,8 +102,9 @@ Paste the summary and reminders prompt. The answer takes about 15 seconds: keep 
 
 Show the pending reminder cards. Do **not** click send.
 
-> "It gives a forecast range, not a single number, and prepares reminders for invoices
-> due within three days. PayPal writes the reminder email. I am not sending these."
+> "It gives the likely outcome and the average for each currency, not one blended number,
+> and prepares reminders for invoices due within three days. PayPal writes the reminder
+> email, and the card says so. I am not sending these."
 
 ### 1:15–1:50 — operator approval and PayPal read-back
 
@@ -121,9 +126,9 @@ Sandbox sends are enabled only by explicit operator choice.
 
 ### 1:50–2:20 — failure handling (offline simulation)
 
-State clearly, on screen or aloud, that this part is an **offline simulation**. Switch
-to the offline instance, use the suggested invoice prompt, open **Simulate a PayPal
-problem**, choose **PayPal sends it, but the answer is lost**, send the invoice, then
+State clearly, on screen or aloud, that this part is an **offline simulation** (the panel
+also carries an **Offline simulation** label). Switch to the offline instance, use the
+suggested invoice prompt, open **Simulate a PayPal problem**, choose **PayPal sends it, but the answer is lost**, send the invoice, then
 click **Check PayPal**.
 
 > "This failure is simulated offline. PayPal sent the invoice but the answer was lost.
@@ -132,7 +137,7 @@ click **Check PayPal**.
 
 ### 2:20–2:40 — impact and honest close
 
-Return to the real instance and show the status line.
+Return to the real instance and show the status badges.
 
 > "Invoice Steward makes follow-up safer and faster: real PayPal Sandbox data,
 > Claude-assisted proposals, and human approval before every external action. It is

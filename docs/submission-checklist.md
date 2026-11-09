@@ -11,15 +11,16 @@ three minutes, and a complete submission description.
 
 ## Repository and reproducibility
 
-- [ ] `main` is clean and the final GitHub Actions checks are green.
-- [ ] A fresh local clone installs and starts with the README instructions, without
-  copying any credentials into the repository.
-- [ ] `./scripts/check.sh` passes on a supported Python version.
+- [x] `main` is clean and the final GitHub Actions checks are green (2026-11-09; recheck
+  after any later merge).
+- [x] A fresh local clone installs and starts with the README instructions, without
+  copying any credentials into the repository (demo mode, 2026-11-09).
+- [x] `./scripts/check.sh` passes on a supported Python version (3.11 and 3.12).
 - [x] The repository includes the visible [MIT license](../LICENSE) and a public setup
   guide in [README.md](../README.md).
-- [ ] `.env`, local SQLite data, screenshots with private data and generated recordings
+- [x] `.env`, local SQLite data, screenshots with private data and generated recordings
   are not staged or committed.
-- [ ] README commands, `.env.example` and actual configuration names agree.
+- [x] README commands, `.env.example` and actual configuration names agree.
 
 ## Functional evidence
 

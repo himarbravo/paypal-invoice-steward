@@ -35,8 +35,8 @@ Invoice Steward reads invoices from PayPal, forecasts when they will be paid, an
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| `core` | Done | `models`, `ports`, `forecast`, `proposals`, `agent` |
-| `persistence` | Done | `store` (SQLite), `paypal_sandbox`, `paypal_demo`, `anthropic_client` |
+| `core` | Done | `models`, `ports`, `forecast`, `aging`, `proposals`, `contact` (local contact holds), `agent` |
+| `persistence` | Done | `store` (SQLite), `paypal_sandbox`, `paypal_demo`, `inventory` (verified invoice reads and freshness), `anthropic_client` |
 | `ui` | Done | `config`, `web`, `static/index.html` |
 
 `core` reaches the outside world only through the ports in `core/ports.py`; `ui/web.py` wires the concrete implementations. See [ADR 0004](adr/0004-invoice-steward-architecture.md).
