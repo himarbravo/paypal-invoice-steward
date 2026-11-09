@@ -84,7 +84,9 @@
   .owed { font: 400 clamp(20px, 2.2vw, 26px)/1.35 var(--serif); max-width: 48ch; }
   .owed strong { font-weight: 700; }
   .owed .risk { color: var(--late); }
+  .currency-summary + .currency-summary::before { content: " · "; color: var(--ink-2); }
   .chart-wrap { margin: 18px 0 6px; max-width: 760px; }
+  .forecast + .forecast { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
   .chart-wrap h2, .invoices h2 { font: 600 17px/1.3 var(--serif); margin-bottom: 2px; }
   .chart-wrap .sub { color: var(--ink-2); font-size: 14px; margin-bottom: 8px; }
   svg.chart { width: 100%; height: auto; display: block; }
@@ -347,7 +349,7 @@ for (const [label, text] of SUGGESTIONS) {
 /* ---------- ledger: figures, forecast chart, invoice table ---------- */
 let showPaid = false;
 let lastInvoices = [];
-let lastForecast = null;
+let lastForecasts = [];
 
 function niceMax(value) {
   const step = Math.pow(10, Math.floor(Math.log10(Math.max(value, 1))));
@@ -424,34 +426,55 @@ function contactControls(invoice) {
 }
 
 function renderLedger() {
-  const f = lastForecast;
+  const forecastsByCurrency = new Map(
+    lastForecasts.map((forecast) => [forecast.currency, forecast]));
   const open = lastInvoices.filter((i) => i.status === "open");
   const owed = $("#owed");
   if (!open.length) {
     owed.replaceChildren("Nothing is waiting to be paid. Ask the assistant to prepare an invoice.");
   } else {
-    const cur = f ? f.currency : open[0].currency;
-    const total = open.reduce((s, i) => s + (i.balance_source === "paypal_due_amount" ? i.remaining_amount : i.amount), 0);
-    const parts = [
-      h("strong", {}, money(total, cur)), ` is owed across ${open.length} invoice${open.length === 1 ? "" : "s"}.`,
-    ];
-    if (f && f.at_risk_amount > 0) parts.push(" ", h("span", { class: "risk" }, h("strong", {}, money(f.at_risk_amount, cur)), " of it is at risk."));
-    owed.replaceChildren(...parts);
+    const openByCurrency = new Map();
+    for (const invoice of open) {
+      const current = openByCurrency.get(invoice.currency) || { total: 0, count: 0 };
+      current.total += invoice.balance_source === "paypal_due_amount" ? invoice.remaining_amount : invoice.amount;
+      current.count += 1;
+      openByCurrency.set(invoice.currency, current);
+    }
+    const summaries = [...openByCurrency.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([currency, summary]) => {
+        const forecast = forecastsByCurrency.get(currency);
+        const parts = [
+          h("strong", {}, money(summary.total, currency)),
+          ` is owed across ${summary.count} invoice${summary.count === 1 ? "" : "s"}.`,
+        ];
+        if (forecast && forecast.at_risk_amount > 0) {
+          parts.push(
+            " ",
+            h("span", { class: "risk" },
+              h("strong", {}, money(forecast.at_risk_amount, currency)),
+              " of it is at risk."));
+        }
+        return h("span", { class: "currency-summary" }, parts);
+      });
+    owed.replaceChildren(...summaries);
   }
 
   const wrap = $("#chart-wrap");
-  if (f) {
-    wrap.replaceChildren(
-      h("h2", {}, `Next ${f.weeks.length} weeks`),
-      h("p", { class: "sub" }, `Expect ${money(f.total.expected, f.currency)} to arrive, most likely between ${money(f.total.p10, f.currency)} and ${money(f.total.p90, f.currency)}.`),
-      renderChart(f),
-      h("p", { class: "chart-note" }, "Bars show the expected payments per week. The line is the range that covers about 8 in 10 outcomes. Late payers pull the range down."),
-    );
+  if (lastForecasts.length) {
+    wrap.replaceChildren(...lastForecasts.map((forecast) =>
+      h("section", { class: "forecast" },
+        h("h2", {}, `${forecast.currency} · Next ${forecast.weeks.length} weeks`),
+        h("p", { class: "sub" },
+          `Expect ${money(forecast.total.expected, forecast.currency)} to arrive, most likely between ${money(forecast.total.p10, forecast.currency)} and ${money(forecast.total.p90, forecast.currency)}.`),
+        renderChart(forecast),
+        h("p", { class: "chart-note" }, "Bars show the expected payments per week. The line is the range that covers about 8 in 10 outcomes. Late payers pull the range down."),
+      )));
   } else {
     wrap.replaceChildren();
   }
 
-  const chance = new Map((f ? f.invoices : []).map((r) => [r.id, r]));
+  const chance = new Map(lastForecasts.flatMap((forecast) => forecast.invoices).map((row) => [row.id, row]));
   const rows = lastInvoices.filter((i) => showPaid || i.status !== "paid");
   const table = h("table", {},
     h("caption", { class: "sr-only" }, "Invoices"),
@@ -482,13 +505,12 @@ async function refreshLedger() {
   try {
     const [inv, fc] = await Promise.all([api("/api/invoices"), api("/api/forecast")]);
     lastInvoices = inv.invoices;
-    const currencies = Object.keys(fc.forecasts);
-    lastForecast = currencies.length ? fc.forecasts[currencies[0]] : null;
+    lastForecasts = Object.values(fc.forecasts).sort((left, right) => left.currency.localeCompare(right.currency));
     renderLedger();
   } catch (err) {
     // Do not leave previously rendered balances, forecasts or invoice rows visible.
     lastInvoices = [];
-    lastForecast = null;
+    lastForecasts = [];
     $("#owed").replaceChildren(h("span", { class: "msg err" }, `Financial figures unavailable: ${err.message}`));
     $("#chart-wrap").replaceChildren();
     $("#table").replaceChildren();
