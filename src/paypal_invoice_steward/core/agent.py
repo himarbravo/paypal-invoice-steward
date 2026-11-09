@@ -76,6 +76,8 @@ How you work:
   by server policy, not this instruction. Customer details stay in the owner's UI.
 - Answer in the language the owner writes in. Be concise: a few short sentences, or a short
   list with "- " items. No tables, headings or code formatting.
+- Use plain words for a business owner, never tool field names: say "likely range" rather
+  than p10 or p90, and "amount still due in PayPal" rather than due_amount residuals.
 """
 
 SANDBOX_REMINDER_NEXT_STEP = (

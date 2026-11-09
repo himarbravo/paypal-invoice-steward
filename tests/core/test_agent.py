@@ -211,6 +211,7 @@ def test_system_prompt_asks_for_plain_replies_without_raw_ids() -> None:
     assert "never quote" in SYSTEM_PROMPT
     assert "No tables" in SYSTEM_PROMPT
     assert "If p10 equals p90" in SYSTEM_PROMPT
+    assert "never tool field names" in SYSTEM_PROMPT
 
 
 def test_tool_errors_go_back_to_the_model(service: ProposalService, port: FakePayPal) -> None:
