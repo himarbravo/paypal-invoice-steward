@@ -42,6 +42,17 @@ def test_health_and_index(client: TestClient) -> None:
     assert page.status_code == 200 and "Invoice Steward" in page.text
 
 
+def test_browser_ledger_keeps_each_currency_in_a_separate_summary(client: TestClient) -> None:
+    page = client.get("/").text
+    assert "let lastForecasts = []" in page
+    assert "lastForecasts.map((forecast) => [forecast.currency, forecast])" in page
+    assert "const openByCurrency = new Map()" in page
+    assert "openByCurrency.entries()" in page
+    assert ".sort(([left], [right]) => left.localeCompare(right))" in page
+    assert "lastForecasts = Object.values(fc.forecasts)" in page
+    assert "const total = open.reduce" not in page
+
+
 def test_overview_endpoints(client: TestClient) -> None:
     invoices = client.get("/api/invoices").json()["invoices"]
     assert invoices and invoices[0]["status"] == "open"
