@@ -15,7 +15,11 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from .aging import receivables_aging
+from .aging import (
+    PAYPAL_DUE_AMOUNT_BASIS,
+    SYNTHETIC_FACE_AMOUNT_BASIS,
+    receivables_aging,
+)
 from .forecast import forecast
 from .models import (
     BALANCE_UNVERIFIED_MESSAGE,
@@ -53,8 +57,8 @@ How you work:
   a proposal with status "done".
 - If a proposal is "unverified", say plainly that the outcome is unknown and that they can
   press Verify. Never call an unverified proposal failed.
-- For aging, explain that open invoice face amounts may differ from outstanding balances
-  after partial payments. Never combine currencies.
+- For aging, respect the result's stated basis: PayPal figures use verified due_amount
+  residuals, while offline demo figures use invoice face amounts. Never combine currencies.
 - Use figures only from tool results. When quoting the forecast, give the range (p10 to p90),
   not just the expected value, and name the invoices that drive the risk.
 - If a tool returns an error, explain it simply and say what the owner can do instead.
@@ -92,8 +96,8 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_receivables_aging",
         "description": (
-            "Age currently open invoice face amounts by due date and currency; "
-            "not verified remaining balances for partial payments."
+            "Age current open receivables by due date and currency. The result states whether "
+            "figures are PayPal due_amount residuals or synthetic demo face amounts."
         ),
         "input_schema": {"type": "object", "properties": {}},
     },
@@ -209,10 +213,13 @@ def _project_for_model(name: str, data: JSON) -> JSON:
             }
         return result or {"message": "No safe invoice forecast is available."}
     if name == "get_receivables_aging":
+        basis = data.get("basis")
+        if basis not in {PAYPAL_DUE_AMOUNT_BASIS, SYNTHETIC_FACE_AMOUNT_BASIS}:
+            return {"message": "No safe receivables aging is available."}
         fields = ("amount", "currency", "due", "days_overdue", "bucket")
         rows = [_model_invoice(row, fields) for row in data["invoices"]]
         return {
-            "basis": "current open invoice face amounts",
+            "basis": basis,
             "as_of": data["as_of"],
             "by_currency": {
                 cur: amount

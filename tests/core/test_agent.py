@@ -71,6 +71,29 @@ def test_receivables_aging_tool_is_read_only(service: ProposalService, port: Fak
     assert port.sent_log == []
 
 
+def test_model_aging_projection_preserves_verified_paypal_residual_basis(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    for candidate in port.invoices.values():
+        if candidate.status == "open":
+            candidate.balance_source = "paypal_due_amount"
+            candidate.remaining_amount = candidate.amount
+    invoice = port.invoices["INV1"]
+    invoice.amount = 450.0
+    invoice.remaining_amount = 250.75
+    invoice.balance_source = "paypal_due_amount"
+
+    content, is_error = Toolbox(service, port, lambda: TODAY).run_for_model(
+        "get_receivables_aging", {}
+    )
+
+    assert not is_error
+    result = json.loads(content)
+    assert result["basis"] == "PayPal due_amount residuals"
+    row = next(row for row in result["invoices"] if row["id"] == "INV1")
+    assert row["amount"] == 250.75
+
+
 def test_llm_agent_only_creates_pending_proposals(
     service: ProposalService, port: FakePayPal
 ) -> None:
