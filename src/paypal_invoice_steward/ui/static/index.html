@@ -19,13 +19,20 @@
     --late: #B33A1F;
     --amber: #8A5206;
     --amber-wash: #F6E8CB;
+    --cobalt-wash: #E6EAFE;
+    --paid-wash: #DDF1E7;
+    --late-wash: #F8E1DA;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(14, 26, 51, 0.06), 0 8px 24px rgba(14, 26, 51, 0.07);
+    --top-h: 72px;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
     --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   * { box-sizing: border-box; }
   html { background: var(--paper); }
   body {
-    margin: 0; color: var(--ink); background: var(--paper);
+    margin: 0; color: var(--ink);
+    background: radial-gradient(1100px 520px at 100% 0, #DCE3FF 0, transparent 65%), var(--paper);
     font: 15px/1.5 var(--sans); font-variant-numeric: tabular-nums;
   }
   h1, h2, h3, p { margin: 0; }
@@ -33,39 +40,61 @@
   :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  .top { padding: 18px clamp(16px, 3vw, 36px) 14px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
-  .top h1 { font: 600 22px/1.2 var(--serif); letter-spacing: 0.01em; }
-  .top p { color: var(--ink-2); font-size: 13.5px; }
+  .top { min-height: var(--top-h); padding: 12px clamp(16px, 3vw, 36px); display: flex; align-items: center; justify-content: space-between; gap: 10px 24px; flex-wrap: wrap; color: #fff; background: linear-gradient(115deg, #0E1A33 0%, #172a5e 58%, #1B2FB0 100%); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 38px; height: 38px; flex: none; filter: drop-shadow(0 4px 10px rgba(42, 68, 232, 0.5)); }
+  .top h1 { font: 600 22px/1.15 var(--serif); letter-spacing: 0.01em; }
+  .top .tagline { color: #B9C3E6; font-size: 13px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12.5px; color: #B9C3E6; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; line-height: 1.5; white-space: nowrap; }
+  .pill::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .top .pill { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18); color: #E7ECFF; }
+  .top .pill.live, .top .pill.safe { color: #A6F0CB; }
+  .top .pill.ai { color: #D3C6FF; }
+  .top .pill.warn { color: #FFD58F; }
+  .top .pill.bad { color: #FFB8A8; }
+  .pill.late { background: var(--late-wash); color: var(--late); }
+  .pill.due { background: var(--wash); color: var(--ink-2); }
+  .pill.ok { background: var(--paid-wash); color: var(--paid); }
 
-  .grid { display: grid; grid-template-columns: minmax(340px, 480px) minmax(0, 1fr); min-height: calc(100vh - 62px); }
-  .talk { border-right: 1px solid var(--line); display: flex; flex-direction: column; height: calc(100vh - 62px); position: sticky; top: 0; align-self: start; }
-  .ledger { padding: 26px clamp(16px, 3vw, 40px) 60px; min-width: 0; }
+  .grid { display: grid; grid-template-columns: minmax(340px, 480px) minmax(0, 1fr); min-height: calc(100vh - var(--top-h)); }
+  .talk { border-right: 1px solid var(--line); display: flex; flex-direction: column; height: calc(100vh - var(--top-h)); position: sticky; top: 0; align-self: start; background: rgba(246, 248, 251, 0.85); }
+  .talk-head { padding: 14px clamp(14px, 2vw, 24px) 12px; border-bottom: 1px solid var(--line); }
+  .talk-head h2 { font: 600 17px/1.3 var(--serif); }
+  .talk-head p { color: var(--ink-2); font-size: 13px; }
+  .ledger { padding: 22px clamp(16px, 3vw, 40px) 60px; min-width: 0; }
 
   /* conversation */
-  #log { flex: 1; overflow-y: auto; padding: 20px clamp(14px, 2vw, 24px) 8px; }
-  .msg { margin: 0 0 16px; max-width: 100%; }
-  .msg.me { margin-left: 18%; background: var(--wash); padding: 9px 13px; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .msg.bot { overflow-wrap: anywhere; }
+  #log { flex: 1; overflow-y: auto; padding: 18px clamp(14px, 2vw, 24px) 8px; }
+  .msg { margin: 0 0 14px; max-width: 100%; animation: rise 240ms ease-out both; }
+  .msg.me { margin-left: auto; width: fit-content; max-width: 85%; background: var(--cobalt); color: #fff; padding: 9px 14px; border-radius: 14px 14px 4px 14px; white-space: pre-wrap; overflow-wrap: anywhere; box-shadow: 0 4px 14px rgba(42, 68, 232, 0.25); }
+  .msg.bot { width: fit-content; max-width: 94%; background: var(--slip); border: 1px solid var(--line); padding: 10px 14px; border-radius: 14px 14px 14px 4px; overflow-wrap: anywhere; box-shadow: 0 1px 2px rgba(14, 26, 51, 0.05); }
   .msg.bot ul, .msg.bot ol { margin: 0; padding-left: 20px; }
   .msg.bot > :not(:first-child) { margin-top: 6px; }
   .msg.bot li + li { margin-top: 2px; }
-  .msg.err { color: var(--late); }
+  .msg.err { display: block; color: var(--late); background: var(--late-wash); padding: 10px 14px; border-radius: 12px; }
   .msg.wait { color: var(--ink-2); }
+  .msg.wait::after { content: "..."; display: inline-block; overflow: hidden; vertical-align: bottom; width: 0; animation: dots 1.2s steps(4, end) infinite; }
   .suggest { padding: 0 clamp(14px, 2vw, 24px) 10px; display: flex; flex-wrap: wrap; gap: 8px; }
-  .suggest button { background: transparent; border: 1px solid var(--line); padding: 5px 11px; border-radius: 999px; cursor: pointer; font-size: 13.5px; color: var(--ink-2); }
-  .suggest button:hover { border-color: var(--ink-2); color: var(--ink); }
+  .suggest button { background: var(--slip); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 13.5px; color: var(--ink-2); }
+  .suggest button:hover { border-color: var(--cobalt); color: var(--cobalt-ink); background: var(--cobalt-wash); }
   #composer { display: flex; gap: 10px; padding: 12px clamp(14px, 2vw, 24px) 18px; border-top: 1px solid var(--line); background: var(--panel); }
-  #composer textarea { flex: 1; resize: none; min-height: 44px; max-height: 140px; padding: 10px 12px; border: 1px solid var(--line); background: #fff; border-radius: 3px; font: inherit; color: var(--ink); }
-  .btn { background: var(--ink); color: #fff; border: 0; padding: 0 18px; min-height: 44px; border-radius: 3px; cursor: pointer; font-weight: 600; }
+  #composer textarea { flex: 1; resize: none; min-height: 44px; max-height: 140px; padding: 10px 12px; border: 1px solid var(--line); background: #fff; border-radius: 10px; font: inherit; color: var(--ink); }
+  #composer textarea:focus { border-color: var(--cobalt); }
+  #composer .btn { background: var(--cobalt); }
+  #composer .btn:hover { background: var(--cobalt-ink); }
+  .btn { background: var(--ink); color: #fff; border: 0; padding: 0 18px; min-height: 44px; border-radius: 8px; cursor: pointer; font-weight: 600; }
   .btn:hover { background: #1c2c52; }
   .btn:disabled { opacity: 0.5; cursor: default; }
   .btn.go { background: var(--cobalt); min-height: 38px; }
   .btn.go:hover { background: var(--cobalt-ink); }
   .btn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line); min-height: 38px; font-weight: 500; }
   .btn.ghost:hover { color: var(--ink); border-color: var(--ink-2); }
+  .btn.mini { min-height: 30px; padding: 0 10px; font-size: 13px; background: transparent; color: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; }
+  .btn.mini:hover { color: var(--ink); border-color: var(--ink-2); background: var(--panel); }
 
   /* the proposal slip: the one object that asks for a decision */
-  .slip { position: relative; background: var(--slip); border: 1px solid var(--line); margin: 10px 0 18px; padding: 14px 16px 14px 34px; box-shadow: 0 1px 0 var(--line); }
+  .slip { position: relative; background: var(--slip); border: 1px solid var(--line); border-radius: var(--radius); margin: 10px 0 18px; padding: 14px 16px 14px 34px; box-shadow: var(--shadow); animation: rise 260ms ease-out both; }
   .slip::before { content: ""; position: absolute; left: 14px; top: 10px; bottom: 10px; border-left: 2px dotted var(--ink-2); opacity: 0.45; }
   .slip h3 { font: 600 16px/1.35 var(--serif); margin-bottom: 8px; }
   .slip dl { margin: 0 0 10px; display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; font-size: 14px; }
@@ -84,57 +113,99 @@
   @keyframes stamp { from { transform: rotate(-3deg) scale(1.7); opacity: 0; } to { transform: rotate(-3deg) scale(1); opacity: 0.9; } }
 
   /* ledger */
-  .owed { font: 400 clamp(20px, 2.2vw, 26px)/1.35 var(--serif); max-width: 48ch; }
-  .owed strong { font-weight: 700; }
-  .owed .risk { color: var(--late); }
-  .currency-summary + .currency-summary::before { content: " · "; color: var(--ink-2); }
-  .chart-wrap { margin: 18px 0 6px; max-width: 760px; }
-  .forecast + .forecast { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
+  .freshness { display: flex; gap: 9px; align-items: baseline; color: var(--ink-2); font-size: 13px; max-width: 900px; }
+  .freshness::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--paid); box-shadow: 0 0 0 3px var(--paid-wash); }
+  .freshness.stale::before { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-wash); }
+  .section-title { font: 700 12px/1.3 var(--sans); text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-2); margin: 22px 0 10px; }
+  .owed { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; max-width: 900px; }
+  .currency-summary { position: relative; overflow: hidden; background: var(--slip); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 16px 14px; box-shadow: var(--shadow); }
+  .currency-summary::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, var(--cobalt), #8C9BFF); }
+  .cur { display: inline-block; font: 700 12px/1 var(--sans); letter-spacing: 0.08em; color: var(--cobalt-ink); background: var(--cobalt-wash); padding: 4px 8px; border-radius: 6px; }
+  .amount { font: 600 30px/1.15 var(--serif); margin-top: 10px; letter-spacing: -0.01em; }
+  .count { color: var(--ink-2); font-size: 14px; }
+  .risk-line { margin-top: 10px; font-size: 14px; color: var(--late); }
+  .risk-line.none { color: var(--paid); }
+  .share { margin-top: 8px; height: 6px; border-radius: 999px; background: var(--paid-wash); overflow: hidden; }
+  .share span { display: block; height: 100%; background: var(--late); border-radius: inherit; }
+  .chart-wrap { margin: 0 0 6px; max-width: 900px; display: grid; gap: 16px; }
+  .forecast { background: var(--slip); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px 12px; box-shadow: var(--shadow); }
+  .forecast h2 { display: flex; align-items: center; gap: 10px; }
   .chart-wrap h2, .invoices h2 { font: 600 17px/1.3 var(--serif); margin-bottom: 2px; }
-  .chart-wrap .sub { color: var(--ink-2); font-size: 14px; margin-bottom: 8px; }
+  .chart-wrap .sub, .invoices .sub { color: var(--ink-2); font-size: 14px; margin-bottom: 8px; }
   svg.chart { width: 100%; height: auto; display: block; }
-  svg.chart .grid-line { stroke: var(--line); stroke-width: 1; }
+  svg.chart .grid-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
   svg.chart .axis-label { fill: var(--ink-2); font: 12px var(--sans); }
-  svg.chart .bar { fill: var(--cobalt); }
-  svg.chart .whisker { stroke: var(--ink); stroke-width: 1.5; }
+  svg.chart .bar { transition: opacity 150ms; }
+  svg.chart .bar:hover { opacity: 0.8; }
+  svg.chart .whisker { stroke: var(--ink); stroke-width: 1.5; opacity: 0.6; }
   .chart-note { color: var(--ink-2); font-size: 13px; max-width: 60ch; }
+  body:not(.settled) .currency-summary, body:not(.settled) .forecast { animation: rise 360ms ease-out both; }
+  body:not(.settled) .currency-summary:nth-child(2), body:not(.settled) .forecast:nth-child(2) { animation-delay: 70ms; }
+  body:not(.settled) .currency-summary:nth-child(3), body:not(.settled) .forecast:nth-child(3) { animation-delay: 140ms; }
 
-  .invoices { margin-top: 34px; max-width: 900px; }
+  .invoices { margin-top: 26px; max-width: 900px; background: var(--slip); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 10px; box-shadow: var(--shadow); }
   table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { text-align: left; font-weight: 500; color: var(--ink-2); font-size: 13px; padding: 6px 0 6px 18px; border-bottom: 1px solid var(--ink-2); }
-  td { padding: 9px 0 9px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { text-align: left; font-weight: 700; color: var(--ink-2); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 0 8px 18px; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 0 10px 18px; border-bottom: 1px solid var(--wash); vertical-align: middle; }
+  tbody tr:hover td { background: var(--panel); }
   th:first-child, td:first-child { padding-left: 0; }
-  th.num, td.num { text-align: right; }
-  td.late { color: var(--late); font-weight: 600; }
-  td.ok { color: var(--paid); }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  th.num, td.num { text-align: right; white-space: nowrap; }
   td .chance.high { color: var(--late); font-weight: 600; }
   td .chance.medium { color: var(--amber); font-weight: 600; }
+  .meter { display: inline-block; width: 44px; height: 6px; margin-left: 8px; vertical-align: middle; border-radius: 999px; background: var(--wash); overflow: hidden; }
+  .meter span { display: block; height: 100%; background: var(--paid); border-radius: inherit; }
+  .chance.medium + .meter span { background: var(--amber); }
+  .chance.high + .meter span { background: var(--late); }
   tr.paid td { color: var(--ink-2); }
+  .hold { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .hold select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
   .toggle { margin-top: 10px; background: none; border: 0; color: var(--cobalt-ink); text-decoration: underline; cursor: pointer; padding: 4px 0; }
   .table-scroll { overflow-x: auto; }
 
-  details.demo { margin-top: 34px; max-width: 520px; border-top: 1px solid var(--line); padding-top: 12px; }
-  details.demo summary { cursor: pointer; color: var(--ink-2); }
+  details.demo { margin-top: 26px; max-width: 900px; border: 1px dashed #D9B36A; background: #FFF9EC; border-radius: var(--radius); padding: 12px 16px; }
+  details.demo summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+  details.demo .tag { margin-left: 10px; font: 700 11px/1 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--amber); background: var(--amber-wash); padding: 4px 7px; border-radius: 6px; vertical-align: 2px; }
   details.demo p { color: var(--ink-2); font-size: 14px; margin: 8px 0; }
-  details.demo select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); background: #fff; border-radius: 3px; color: var(--ink); max-width: 100%; }
+  details.demo select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); background: #fff; border-radius: 6px; color: var(--ink); max-width: 100%; }
   .loading { color: var(--ink-2); }
 
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes dots { to { width: 1.25em; } }
   @media (max-width: 980px) {
     .grid { grid-template-columns: 1fr; }
     .talk { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
     #log { max-height: 62vh; min-height: 220px; }
   }
-  @media (prefers-reduced-motion: reduce) { .stamp.struck { animation: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .stamp.struck, .msg, .msg.wait::after, .slip, body:not(.settled) .currency-summary, body:not(.settled) .forecast { animation: none; }
+  }
 </style>
 </head>
 <body>
 <header class="top">
-  <h1>Invoice Steward</h1>
-  <p id="status-line">Loading</p>
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 36 36" aria-hidden="true">
+      <defs><linearGradient id="logo-fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B70FF"/><stop offset="1" stop-color="#1B2FB0"/></linearGradient></defs>
+      <rect width="36" height="36" rx="9" fill="url(#logo-fill)"/>
+      <path d="M11 8h10l5 5v15H11z" fill="#fff"/>
+      <path d="M21 8v5h5" fill="none" stroke="#C9D2FF" stroke-width="1.5"/>
+      <path d="M14.5 20.5l2.6 2.6 5-5.2" fill="none" stroke="#2A44E8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <h1>Invoice Steward</h1>
+      <p class="tagline">PayPal invoices, cash forecast and follow-up. You approve every send.</p>
+    </div>
+  </div>
+  <div class="pills" id="status-line" role="status">Loading</div>
 </header>
 
 <main class="grid">
   <section class="talk" aria-label="Assistant">
+    <div class="talk-head">
+      <h2>Assistant</h2>
+      <p>Reads your invoices and prepares work for you to approve.</p>
+    </div>
     <div id="log" role="log" aria-live="polite"></div>
     <div class="suggest" id="suggest"></div>
     <form id="composer">
@@ -145,8 +216,10 @@
   </section>
 
   <section class="ledger" aria-label="Your invoices">
-    <p id="inventory-status" role="status">Invoices have not been checked yet.</p>
-    <p class="owed" id="owed"><span class="loading">Loading your invoices</span></p>
+    <p class="freshness stale" id="inventory-status" role="status">Invoices have not been checked yet.</p>
+    <h2 class="section-title">Open balances by currency</h2>
+    <div class="owed" id="owed"><span class="loading">Loading your invoices</span></div>
+    <h2 class="section-title">Cash-flow forecast</h2>
     <div class="chart-wrap" id="chart-wrap"></div>
     <div class="invoices">
       <h2>Invoices</h2>
@@ -155,7 +228,7 @@
       <button class="toggle" id="toggle-paid" type="button" hidden></button>
     </div>
     <details class="demo" id="demo" hidden>
-      <summary>Simulate a PayPal problem</summary>
+      <summary>Simulate a PayPal problem <span class="tag">Offline simulation</span></summary>
       <p>Pick a problem, then confirm any proposal to see how the app handles it. It applies to the next PayPal call only.</p>
       <label class="sr-only" for="fail-mode">Next PayPal call</label>
       <select id="fail-mode">
@@ -400,7 +473,7 @@ function niceMax(value) {
 }
 
 function renderChart(f) {
-  const W = 640, H = 230, left = 66, right = 8, top = 12, bottom = 30;
+  const W = 720, H = 210, left = 66, right = 8, top = 12, bottom = 30;
   const plotW = W - left - right, plotH = H - top - bottom;
   const max = niceMax(Math.max(...f.weeks.map((w) => Math.max(w.p90, w.expected))) * 1.05);
   const y = (v) => top + plotH - (v / max) * plotH;
@@ -418,14 +491,24 @@ function renderChart(f) {
     svg.append(node);
     return node;
   };
+  const fill = `bar-fill-${f.currency}`;
+  const gradient = document.createElementNS(ns, "linearGradient");
+  for (const [k, v] of Object.entries({ id: fill, x1: 0, y1: 0, x2: 0, y2: 1 })) gradient.setAttribute(k, v);
+  for (const [offset, color] of [[0, "#6E80FF"], [1, "#2A44E8"]]) {
+    const stop = document.createElementNS(ns, "stop");
+    stop.setAttribute("offset", offset);
+    stop.setAttribute("stop-color", color);
+    gradient.append(stop);
+  }
+  add("defs", {}).append(gradient);
   for (let i = 0; i <= 4; i++) {
     const v = (max / 4) * i;
     add("line", { class: "grid-line", x1: left, x2: W - right, y1: y(v), y2: y(v) });
-    add("text", { class: "axis-label", x: left - 8, y: y(v) + 4, "text-anchor": "end" }, money(v, f.currency));
+    add("text", { class: "axis-label", x: left - 8, y: y(v) + 4, "text-anchor": "end" }, money(v, f.currency, Number.isInteger(v) ? 0 : 2));
   }
   f.weeks.forEach((w, i) => {
     const cx = left + slot * i + slot / 2;
-    const bar = add("rect", { class: "bar", x: cx - barW / 2, y: y(w.expected), width: barW, height: Math.max(plotH - (y(w.expected) - top), 0) });
+    const bar = add("rect", { class: "bar", fill: `url(#${fill})`, rx: 4, x: cx - barW / 2, y: y(w.expected), width: barW, height: Math.max(plotH - (y(w.expected) - top), 0) });
     const t = document.createElementNS(ns, "title");
     t.textContent = `Week of ${shortDate(w.start)}: expect ${money(w.expected, f.currency)}, likely ${money(w.p10, f.currency)} to ${money(w.p90, f.currency)}`;
     bar.append(t);
@@ -463,7 +546,7 @@ function contactControls(invoice) {
   const reason = h("select", { "aria-label": `Hold reason for ${invoice.number}` },
     ...["dispute", "complaint", "contact_preference", "other_review"].map((value) =>
       h("option", { value }, value.replaceAll("_", " "))));
-  const button = h("button", { class: "btn", type: "button", onclick: async () => {
+  const button = h("button", { class: "btn mini", type: "button", onclick: async () => {
     if (active && !releaseRequested) {
       releaseRequested = true;
       button.textContent = "Confirm release";
@@ -478,11 +561,12 @@ function contactControls(invoice) {
       await refreshLedger();
     } catch (err) { feedback.textContent = err.message; button.disabled = false; }
   } }, active ? "Release local hold" : "Hold local reminders");
-  const cancel = h("button", { type: "button", hidden: true, onclick: () => {
+  const cancel = h("button", { class: "btn mini", type: "button", hidden: true, onclick: () => {
     releaseRequested = false; button.textContent = "Release local hold";
     feedback.textContent = ""; cancel.hidden = true;
   } }, "Keep hold");
-  return h("td", {}, active ? h("p", {}, `Held: ${hold.reason.replaceAll("_", " ")}`) : reason, button, cancel, feedback);
+  return h("td", {}, h("div", { class: "hold" },
+    active ? h("span", { class: "pill late" }, `Held: ${hold.reason.replaceAll("_", " ")}`) : reason, button, cancel, feedback));
 }
 
 function renderLedger() {
@@ -504,18 +588,16 @@ function renderLedger() {
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([currency, summary]) => {
         const forecast = forecastsByCurrency.get(currency);
-        const parts = [
-          h("strong", {}, money(summary.total, currency)),
-          ` is owed across ${summary.count} invoice${summary.count === 1 ? "" : "s"}.`,
-        ];
-        if (forecast && forecast.at_risk_amount > 0) {
-          parts.push(
-            " ",
-            h("span", { class: "risk" },
-              h("strong", {}, money(forecast.at_risk_amount, currency)),
-              " of it is at risk."));
-        }
-        return h("span", { class: "currency-summary" }, parts);
+        const atRisk = forecast ? forecast.at_risk_amount : 0;
+        const share = summary.total > 0 ? Math.min(100, (atRisk / summary.total) * 100) : 0;
+        return h("div", { class: "currency-summary" },
+          h("span", { class: "cur" }, currency),
+          h("p", { class: "amount" }, money(summary.total, currency)),
+          h("p", { class: "count" }, `is owed across ${summary.count} invoice${summary.count === 1 ? "" : "s"}.`),
+          forecast ? (atRisk > 0
+            ? h("p", { class: "risk-line" }, h("strong", {}, money(atRisk, currency)), " of it is at risk.")
+            : h("p", { class: "risk-line none" }, "No invoice is at high risk.")) : null,
+          forecast ? h("div", { class: "share", "aria-hidden": "true" }, h("span", { style: `width: ${share}%` })) : null);
       });
     owed.replaceChildren(...summaries);
   }
@@ -524,7 +606,7 @@ function renderLedger() {
   if (lastForecasts.length) {
     wrap.replaceChildren(...lastForecasts.map((forecast) =>
       h("section", { class: "forecast" },
-        h("h2", {}, `${forecast.currency} · Next ${forecast.weeks.length} weeks`),
+        h("h2", {}, h("span", { class: "cur" }, forecast.currency), `Next ${forecast.weeks.length} weeks`),
         h("p", { class: "sub" }, forecastSentence(forecast)),
         renderChart(forecast),
         h("p", { class: "chart-note" }, "Bars show the expected payments per week. The line is the range that covers about 8 in 10 outcomes. Late payers pull the range down."),
@@ -543,21 +625,25 @@ function renderLedger() {
       h("th", { scope: "col", class: "num" }, "Paid within 30 days"), h("th", { scope: "col" }, "Contact hold"))),
     h("tbody", {}, rows.map((i) => {
       const risk = chance.get(i.id);
-      let status = h("td", {}, "Draft");
-      if (i.status === "open") status = i.days_overdue > 0 ? h("td", { class: "late" }, `${i.days_overdue} days late`) : h("td", {}, `Due ${shortDate(i.due)}`);
-      if (i.status === "paid") status = h("td", { class: "ok" }, "Paid");
-      if (i.status === "cancelled") status = h("td", {}, "Cancelled");
-      if (i.status === "unknown") status = h("td", {}, "Unknown status, check PayPal");
+      const pct = risk ? Math.round(risk.p_paid_30d * 100) : 0;
+      let status = h("span", { class: "pill due" }, "Draft");
+      if (i.status === "open") status = i.days_overdue > 0 ? h("span", { class: "pill late" }, `${i.days_overdue} days late`) : h("span", { class: "pill due" }, `Due ${shortDate(i.due)}`);
+      if (i.status === "paid") status = h("span", { class: "pill ok" }, "Paid");
+      if (i.status === "cancelled") status = h("span", { class: "pill due" }, "Cancelled");
+      if (i.status === "unknown") status = h("span", { class: "pill late" }, "Unknown status, check PayPal");
       return h("tr", { class: i.status === "paid" ? "paid" : "" },
         h("td", {}, i.number), h("td", {}, i.customer_name),
-        h("td", { class: "num" }, money(i.amount, i.currency)), status,
-        h("td", { class: "num" }, risk ? h("span", { class: `chance ${risk.risk}` }, `${Math.round(risk.p_paid_30d * 100)}%`) : ""), contactControls(i));
+        h("td", { class: "num" }, money(i.amount, i.currency)), h("td", {}, status),
+        h("td", { class: "num" }, risk ? [h("span", { class: `chance ${risk.risk}` }, `${pct}%`),
+          h("span", { class: "meter", "aria-hidden": "true" }, h("span", { style: `width: ${pct}%` }))] : ""), contactControls(i));
     })));
   $("#table").replaceChildren(table);
   const paidCount = lastInvoices.filter((i) => i.status === "paid").length;
   const toggle = $("#toggle-paid");
   toggle.hidden = paidCount === 0;
   toggle.textContent = showPaid ? "Hide paid invoices" : `Show paid invoices (${paidCount})`;
+  // Entrance animations only on the first render, so later refreshes do not flicker.
+  setTimeout(() => document.body.classList.add("settled"), 800);
 }
 
 async function refreshLedger() {
@@ -583,10 +669,14 @@ async function refreshLedger() {
       : checked.toLocaleString(LOCALE, { dateStyle: "medium", timeStyle: "short" });
     const scope = state.scope.charAt(0).toUpperCase() + state.scope.slice(1);
     const missing = state.missing_ids.length;
+    $("#inventory-status").className = `freshness${state.stale ? " stale" : ""}`;
     $("#inventory-status").textContent = `${scope}. Last invoice check: ${last}. ` +
       `${state.stale ? "Stale or unverified" : "Checked at that time"}; ${missing} previously seen invoices missing. ` +
       "Reload to check again. This does not cover your complete business accounts.";
-  } catch { $("#inventory-status").textContent = "Invoice check history unavailable."; }
+  } catch {
+    $("#inventory-status").className = "freshness stale";
+    $("#inventory-status").textContent = "Invoice check history unavailable.";
+  }
 }
 
 $("#toggle-paid").addEventListener("click", () => { showPaid = !showPaid; renderLedger(); });
@@ -595,18 +685,22 @@ $("#toggle-paid").addEventListener("click", () => { showPaid = !showPaid; render
 (async function start() {
   try {
     const health = await api("/api/health");
-    const data = health.mode === "demo" ? "Demo data" : "PayPal sandbox";
-    const agent = health.agent === "claude" ? "Claude enabled (chat sent to external AI)" : "offline assistant (no external AI)";
-    const permissions = health.mode === "sandbox"
-      ? (health.outbound_actions_enabled ? "approved sandbox sends enabled" : "read-only: outbound sends blocked")
-      : "simulated actions only";
-    $("#status-line").textContent = `${data}, ${agent}, ${permissions}.`;
+    const pill = (text, tone) => h("span", { class: `pill ${tone}` }, text);
+    const sandbox = health.mode === "sandbox";
+    $("#status-line").replaceChildren(
+      pill(sandbox ? "PayPal sandbox" : "Demo data", sandbox ? "live" : "neutral"),
+      health.agent === "claude"
+        ? pill("Claude enabled (chat sent to external AI)", "ai")
+        : pill("Offline assistant (no external AI)", "neutral"),
+      !sandbox ? pill("Simulated actions only", "neutral")
+        : health.outbound_actions_enabled ? pill("Approved sandbox sends enabled", "warn")
+        : pill("Read-only: outbound sends blocked", "safe"));
     if (health.mode === "demo") {
       $("#demo").hidden = false;
       $("#fail-mode").addEventListener("change", (e) =>
         api("/api/demo/fail-next", { method: "POST", body: JSON.stringify({ mode: e.target.value || null }) }).catch(() => {}));
     }
-  } catch { $("#status-line").textContent = "Could not reach the server."; }
+  } catch { $("#status-line").replaceChildren(h("span", { class: "pill bad" }, "Could not reach the server.")); }
   addMessage("bot", "I can show what you are owed, forecast when it will arrive, and prepare invoices and reminders for you to approve. Nothing is sent until you confirm it.");
   refreshLedger();
 })();

@@ -47,4 +47,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - PayPal sandbox and offline demo backends; Claude assistant when `ANTHROPIC_API_KEY` is set, rule-based assistant otherwise.
 - Safe execution: what is sent is exactly what was reviewed, a double confirmation sends once, and a lost PayPal response is marked unverified and checked before any retry.
 
+### Changed
+
+- Refresh the interface presentation: branded header with status badges, one summary card per currency, forecast and invoice cards with exact axis ticks, status and risk pills, chat bubbles and a labelled offline simulation panel; behaviour and approval flows are unchanged (#168).
+
 [Unreleased]: https://github.com/himarbravo/paypal-invoice-steward/commits/main
