@@ -37,6 +37,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Default sandbox operations to read-only; require an explicit environment opt-in before approved invoice and reminder sends, with an HTTP 403 and audit entry when blocked (#91).
 - Reject untrusted sandbox-lookalike endpoints, partial PayPal credentials and unsupported modes instead of silently falling back to demo mode (#73).
 - Reject non-loopback HTTP clients, forged Host headers, cross-origin browser writes and non-loopback bind addresses in the unauthenticated hackathon demo (#85).
+- Render assistant replies with minimal formatting built from text nodes only (paragraphs, lists, bold; table rows become plain lines), describe the forecast honestly when the average falls outside the likely range, format every amount and date with one fixed locale, and show the invoice-check status with a capital letter and a readable time (#167).
 
 ### Added
 
@@ -46,5 +47,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Web app (`paypal-invoice-steward`): chat assistant, cash-flow forecast for the next 8 weeks, and invoice and reminder proposals that a person confirms before anything is sent.
 - PayPal sandbox and offline demo backends; Claude assistant when `ANTHROPIC_API_KEY` is set, rule-based assistant otherwise.
 - Safe execution: what is sent is exactly what was reviewed, a double confirmation sends once, and a lost PayPal response is marked unverified and checked before any retry.
+
+### Changed
+
+- Refresh the interface presentation: branded header with status badges, one summary card per currency, forecast and invoice cards with exact axis ticks, status and risk pills, chat bubbles and a labelled offline simulation panel; behaviour and approval flows are unchanged (#168).
 
 [Unreleased]: https://github.com/himarbravo/paypal-invoice-steward/commits/main
