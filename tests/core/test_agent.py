@@ -7,10 +7,12 @@ import pytest
 from paypal_invoice_steward.core.agent import (
     PROPOSE_TOOLS,
     READ_TOOLS,
+    SYSTEM_PROMPT,
     TOOLS,
     LLMAgent,
     OfflineAgent,
     Toolbox,
+    tools_for,
 )
 from paypal_invoice_steward.core.models import REFUND_REVIEW_MESSAGE, Invoice
 from paypal_invoice_steward.core.ports import (
@@ -19,7 +21,11 @@ from paypal_invoice_steward.core.ports import (
     PayPalError,
     PayPalUncertain,
 )
-from paypal_invoice_steward.core.proposals import ProposalService
+from paypal_invoice_steward.core.proposals import (
+    PAYPAL_REMINDER_TEXT,
+    PolicyError,
+    ProposalService,
+)
 
 from .conftest import TODAY, FakePayPal
 
@@ -27,21 +33,30 @@ from .conftest import TODAY, FakePayPal
 class ScriptedClient:
     """Asks for one reminder proposal, then answers with text."""
 
-    def __init__(self, invoice_id: str) -> None:
+    def __init__(self, invoice_id: str, note: str | None = None) -> None:
         self.invoice_id = invoice_id
+        self.note = note
         self.calls: list[dict[str, Any]] = []
 
     def create_message(self, **kwargs: Any) -> Any:
         self.calls.append(kwargs)
         if len(self.calls) == 1:
-            block = NS(
-                type="tool_use",
-                id="t1",
-                name="propose_reminder",
-                input={"invoice_id": self.invoice_id},
-            )
+            args = {"invoice_id": self.invoice_id}
+            if self.note is not None:
+                args["note"] = self.note
+            block = NS(type="tool_use", id="t1", name="propose_reminder", input=args)
             return NS(content=[block], stop_reason="tool_use")
         return NS(content=[NS(type="text", text="Prepared a reminder.")], stop_reason="end_turn")
+
+
+def tool_results(call: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        block
+        for message in call["messages"]
+        if isinstance(message["content"], list)
+        for block in message["content"]
+        if block.get("type") == "tool_result"
+    ]
 
 
 def test_no_tool_can_execute_anything() -> None:
@@ -104,6 +119,99 @@ def test_llm_agent_only_creates_pending_proposals(
     assert service.get(reply.proposal_ids[0])["status"] == "pending"
     assert port.sent_log == []
     assert client.calls[0]["tools"] == TOOLS
+
+
+def test_sandbox_reminder_tool_offers_no_custom_note() -> None:
+    sandbox = {tool["name"]: tool for tool in tools_for("sandbox")}
+    reminder = sandbox["propose_reminder"]
+    assert "note" not in reminder["input_schema"]["properties"]
+    assert "PayPal writes the reminder email" in reminder["description"]
+    assert set(sandbox) == {tool["name"] for tool in TOOLS}
+    assert tools_for("demo") == TOOLS
+    demo_reminder = next(tool for tool in TOOLS if tool["name"] == "propose_reminder")
+    assert "note" in demo_reminder["input_schema"]["properties"]
+
+
+def test_sandbox_agent_prepares_a_reminder_even_when_the_model_writes_a_note(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    port.mode = "sandbox"
+    client = ScriptedClient("INV1", note="MODEL_NOTE_TEXT please pay soon.")
+    reply = LLMAgent(service, port, client, "model", lambda: TODAY).run("s", "remind them")
+
+    assert len(reply.proposal_ids) == 1
+    proposal = service.get(reply.proposal_ids[0])
+    assert proposal["status"] == "pending"
+    assert proposal["payload"]["note"] == PAYPAL_REMINDER_TEXT
+    assert "MODEL_NOTE_TEXT" not in json.dumps(proposal)
+    assert client.calls[0]["tools"] == tools_for("sandbox")
+    result = tool_results(client.calls[1])[0]
+    assert result["is_error"] is False
+    assert "PayPal writes the reminder email" in json.loads(result["content"])["next_step"]
+    assert port.sent_log == []
+    with pytest.raises(PolicyError, match="custom notes"):
+        service.propose_reminder("INV2", "A custom note from any other caller")
+
+
+def test_demo_agent_keeps_the_model_reminder_note(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    client = ScriptedClient("INV1", note="A short, polite nudge.")
+    reply = LLMAgent(service, port, client, "model", lambda: TODAY).run("s", "remind them")
+    assert service.get(reply.proposal_ids[0])["payload"]["note"] == "A short, polite nudge."
+
+
+class IdQuotingClient:
+    """Reads invoices, proposes a reminder, then quotes raw identifiers back."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def create_message(self, **kwargs: Any) -> Any:
+        self.calls.append(kwargs)
+        if len(self.calls) == 1:
+            return NS(
+                content=[
+                    NS(type="tool_use", id="a", name="list_invoices", input={}),
+                    NS(
+                        type="tool_use",
+                        id="b",
+                        name="propose_reminder",
+                        input={"invoice_id": "INV1"},
+                    ),
+                ],
+                stop_reason="tool_use",
+            )
+        if len(self.calls) == 2:
+            proposal_id = json.loads(tool_results(kwargs)[1]["content"])["proposal_id"]
+            text = f"INV1 and `INV2` are late, INV3 is not, INV10 is unknown. {proposal_id} waits."
+        else:
+            text = "INV1 is still the oldest."
+        return NS(content=[NS(type="text", text=text)], stop_reason="end_turn")
+
+
+def test_reply_swaps_raw_ids_for_the_labels_the_owner_sees(
+    service: ProposalService, port: FakePayPal
+) -> None:
+    port.invoices["INV3"].number = "INV3"  # PayPal returned no separate invoice number
+    client = IdQuotingClient()
+    agent = LLMAgent(service, port, client, "model", lambda: TODAY)
+
+    reply = agent.run("s", "What is late? Remind the oldest.")
+    reference = service.get(reply.proposal_ids[0])["reference"]
+    assert reply.text == (
+        f"N-1 and `N-2` are late, this invoice is not, INV10 is unknown. {reference} waits."
+    )
+    assert agent.run("s", "And now?").text == "N-1 is still the oldest."
+    assert "N-1" not in json.dumps(client.calls)
+    assert any("INV1" in json.dumps(message) for message in client.calls[-1]["messages"])
+
+
+def test_system_prompt_asks_for_plain_replies_without_raw_ids() -> None:
+    assert "never quote" in SYSTEM_PROMPT
+    assert "No tables" in SYSTEM_PROMPT
+    assert "If p10 equals p90" in SYSTEM_PROMPT
+    assert "never tool field names" in SYSTEM_PROMPT
 
 
 def test_tool_errors_go_back_to_the_model(service: ProposalService, port: FakePayPal) -> None:
