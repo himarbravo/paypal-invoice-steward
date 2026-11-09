@@ -53,6 +53,20 @@ def test_browser_ledger_keeps_each_currency_in_a_separate_summary(client: TestCl
     assert "const total = open.reduce" not in page
 
 
+def test_page_never_turns_text_into_html(client: TestClient) -> None:
+    page = client.get("/").text
+    for sink in (
+        "innerHTML",
+        "outerHTML",
+        "insertAdjacentHTML",
+        "document.write",
+        "DOMParser",
+        "createContextualFragment",
+    ):
+        assert sink not in page
+    assert "replaceChildren(...formatReply(data.reply))" in page
+
+
 def test_overview_endpoints(client: TestClient) -> None:
     invoices = client.get("/api/invoices").json()["invoices"]
     assert invoices and invoices[0]["status"] == "open"
