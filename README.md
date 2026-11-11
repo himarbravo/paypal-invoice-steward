@@ -6,6 +6,10 @@ An AI agent that helps a small business get paid. It watches your PayPal invoice
 
 Built for the PayPal AI Hackathon with the PayPal Invoicing v2 API (sandbox) and Claude.
 
+**Demo video (under 3 minutes):** https://youtu.be/upLehu4YaaE
+
+[![Watch the demo video](https://img.youtube.com/vi/upLehu4YaaE/hqdefault.jpg)](https://youtu.be/upLehu4YaaE)
+
 > Status: early development (`0.x`). See [CHANGELOG.md](CHANGELOG.md).
 
 ## What it does
